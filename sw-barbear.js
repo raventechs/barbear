@@ -1,5 +1,5 @@
-// sw-barbear.js — Service Worker BarbeAR v1.0
-const CACHE_NAME = 'barbear-v1.0';
+// sw-barbear.js — Service Worker BarbeAR v1.1
+const CACHE_NAME = 'barbear-v1.1';
 const SHELL = [
   '/',
   '/index.html',
@@ -29,6 +29,22 @@ self.addEventListener('fetch', e => {
       url.hostname.includes('securetoken.googleapis.com')) {
     return;
   }
+
+  // Navegación (el HTML principal) — SIEMPRE ir a buscar lo último primero.
+  // Solo usar el cache si no hay internet. Así una actualización nueva
+  // se ve enseguida, sin quedar pegado a una versión vieja para siempre.
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(response => {
+        const clon = response.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, clon));
+        return response;
+      }).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Resto de archivos (JS, CSS, imágenes) — cache primero, más rápido
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -41,9 +57,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE_NAME).then(c => c.put(e.request, clon));
         }
         return response;
-      }).catch(() => {
-        if (e.request.mode === 'navigate') return caches.match('/index.html');
-      });
+      }).catch(() => {});
     })
   );
 });
