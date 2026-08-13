@@ -2498,7 +2498,7 @@ async function toggleFeature(key, value) {
   if(!uid) return;
   try {
     await db.collection('negocios').doc(uid).set({
-      features: { [key]: value }
+      [`features.${key}`]: value
     }, {merge:true});
     features[key] = value;
     const tabs = getTabsForRole();
