@@ -1954,17 +1954,25 @@ async function cargarInsumosBasicos() {
   const uid = getUserDoc();
   if(!uid) return;
   let count = 0;
-  try {
-    for(const ins of INSUMOS_BASICOS) {
-      // Avoid duplicates by name
-      const existing = insumos.find(i => i.nombre.toLowerCase() === ins.nombre.toLowerCase());
-      if(!existing) {
+  let primerError = null;
+  for(const ins of INSUMOS_BASICOS) {
+    // Avoid duplicates by name
+    const existing = insumos.find(i => i.nombre.toLowerCase() === ins.nombre.toLowerCase());
+    if(!existing) {
+      try {
         await col('insumos').add(ins);
         count++;
+      } catch(e) {
+        if (!primerError) primerError = e.message;
+        console.log('Fallo al agregar', ins.nombre, ':', e.message);
       }
     }
-    toast(count > 0 ? `${count} insumos cargados` : 'Todos los insumos básicos ya existen');
-  } catch(e) { toast('Error: '+e.message); }
+  }
+  if (primerError) {
+    toast(`⚠️ ${count} cargados, error en el resto: ${primerError}`);
+  } else {
+    toast(count > 0 ? `✅ ${count} insumos cargados` : 'Todos los insumos básicos ya existen');
+  }
 }
 
 // ══════════ DASHBOARD ══════════
@@ -2159,18 +2167,32 @@ async function restablecerCatalogo() {
     const batch1 = db.batch();
     snap.forEach(doc => batch1.delete(doc.ref));
     await batch1.commit();
+  } catch(e) {
+    toast('❌ Error borrando catálogo anterior: ' + e.message);
+    return;
+  }
 
-    // Add example catalog
-    for(const p of CATALOGO_EJEMPLO) {
+  let count = 0;
+  let primerError = null;
+  for(const p of CATALOGO_EJEMPLO) {
+    try {
       await col('productos').add({
         nombre: p.nombre,
         categoria: p.categoria,
         tamanos: p.tamanos,
         recetaPorTamano: {}
       });
+      count++;
+    } catch(e) {
+      if (!primerError) primerError = e.message;
+      console.log('Fallo al agregar', p.nombre, ':', e.message);
     }
-    toast('✅ Catálogo restablecido');
-  } catch(e) { toast('Error: '+e.message); }
+  }
+  if (primerError) {
+    toast(`⚠️ ${count}/${CATALOGO_EJEMPLO.length} cargados. Error: ${primerError}`);
+  } else {
+    toast(`✅ Catálogo restablecido (${count} items)`);
+  }
 }
 
 async function limpiarDuplicados() {
