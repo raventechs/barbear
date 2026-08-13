@@ -1689,7 +1689,7 @@ async function cargarHorarioAtencionEnConfig() {
 // ══════════ AUTO-CARGA INICIAL (sin botones, se ejecuta sola) ══════════
 async function autoSeedInicial() {
   const ref = col('productos');
-  if (!ref) return;
+  if (!ref) { toast('⚠️ autoSeed: no hay usuario logueado'); return; }
   try {
     const snap = await ref.limit(1).get();
     if (snap.empty) {
@@ -1699,9 +1699,9 @@ async function autoSeedInicial() {
           tamanos: p.tamanos, recetaPorTamano: {}
         });
       }
-      console.log('Catálogo cargado automáticamente');
+      toast('✅ Catálogo cargado automáticamente');
     }
-  } catch(e) { console.log('autoSeed productos skip:', e.message); }
+  } catch(e) { toast('❌ Error cargando catálogo: ' + e.message); }
 
   const uid = getUserDoc();
   if (!uid) return;
@@ -1715,9 +1715,9 @@ async function autoSeedInicial() {
           creadoEn: firebase.firestore.FieldValue.serverTimestamp()
         });
       }
-      console.log('Barberos de ejemplo cargados automáticamente');
+      toast('✅ Barberos de ejemplo cargados');
     }
-  } catch(e) { console.log('autoSeed barberos skip:', e.message); }
+  } catch(e) { toast('❌ Error cargando barberos: ' + e.message); }
 }
 
 // ══════════ MENU CRUD ══════════
