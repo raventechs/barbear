@@ -769,54 +769,48 @@ const PIN_ADMIN = '2580';
 const ADMIN_EMAIL = 'rgaraventa@gmail.com';
 
 const GRUPOS_MAP = {
-  'Cortes': 'Cortes',
-  'Barba': 'Barba',
-  'Combos': 'Combos',
-  'Extras': 'Extras',
-  'Productos': 'Productos'
+  'Peluquería': 'Peluquería',
+  'Barbería': 'Barbería',
+  'Insumos': 'Insumos'
 };
 
 const CATALOGO_EJEMPLO = [
-  // ── CORTES ── (precios de referencia agosto 2026, editables)
-  {nombre:'Corte clásico', categoria:'Cortes', tamanos:[{nombre:'Servicio',precio:14000}]},
-  {nombre:'Corte con degradé/fade', categoria:'Cortes', tamanos:[{nombre:'Servicio',precio:16000}]},
-  {nombre:'Corte niño (hasta 12)', categoria:'Cortes', tamanos:[{nombre:'Servicio',precio:10000}]},
-  {nombre:'Diseño/dibujo en pelo', categoria:'Cortes', tamanos:[{nombre:'Servicio',precio:6000}]},
+  // ══ PELUQUERÍA — todo lo que es pelo ══
+  {nombre:'Corte clásico', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:14000}]},
+  {nombre:'Corte con degradé/fade', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:16000}]},
+  {nombre:'Corte niño (hasta 12)', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:10000}]},
+  {nombre:'Diseño/dibujo en pelo', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:6000}]},
+  {nombre:'Lavado de pelo', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:4000}]},
+  {nombre:'Aplicación de cera/pomada', categoria:'Peluquería', tamanos:[{nombre:'Servicio',precio:3000}]},
 
-  // ── BARBA ──
-  {nombre:'Perfilado de barba', categoria:'Barba', tamanos:[{nombre:'Servicio',precio:10000}]},
-  {nombre:'Afeitado a navaja', categoria:'Barba', tamanos:[{nombre:'Servicio',precio:12000}]},
+  // ══ BARBERÍA — todo lo relacionado a barba ══
+  {nombre:'Perfilado de barba', categoria:'Barbería', tamanos:[{nombre:'Servicio',precio:10000}]},
+  {nombre:'Afeitado a navaja', categoria:'Barbería', tamanos:[{nombre:'Servicio',precio:12000}]},
+  {nombre:'Perfilado de cejas', categoria:'Barbería', tamanos:[{nombre:'Servicio',precio:4000}]},
+  {nombre:'Corte + barba', categoria:'Barbería', tamanos:[{nombre:'Servicio',precio:24000}]},
+  {nombre:'Corte + barba + cejas', categoria:'Barbería', tamanos:[{nombre:'Servicio',precio:27000}]},
 
-  // ── COMBOS ──
-  {nombre:'Corte + barba', categoria:'Combos', tamanos:[{nombre:'Servicio',precio:24000}]},
-  {nombre:'Corte + barba + cejas', categoria:'Combos', tamanos:[{nombre:'Servicio',precio:27000}]},
-
-  // ── EXTRAS ──
-  {nombre:'Lavado de pelo', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:4000}]},
-  {nombre:'Perfilado de cejas', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:4000}]},
-  {nombre:'Aplicación de cera/pomada', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:3000}]},
-
-  // ── PRODUCTOS (venta al mostrador, precios ref. agosto 2026) ──
-  {nombre:'Pomada para peinar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:9000}]},
-  {nombre:'Cera moldeadora', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:10000}]},
-  {nombre:'Cera mate (matte)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:11000}]},
-  {nombre:'Aceite para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:8500}]},
-  {nombre:'Bálsamo para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:9500}]},
-  {nombre:'Shampoo anticaída', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:7000}]},
-  {nombre:'Champú para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6500}]},
-  {nombre:'Gel fijador', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5000}]},
-  {nombre:'Talco texturizante', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6000}]},
-  {nombre:'Loción after shave', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6500}]},
-  {nombre:'Colonia para hombre', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:12000}]},
-  {nombre:'Cepillo para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:4500}]},
-  {nombre:'Peine de bolsillo', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:3000}]},
-  {nombre:'Peine de madera', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5500}]},
-  {nombre:'Repuestos maquinita descartable (pack)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:3500}]},
-  {nombre:'Navaja de afeitar tradicional', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:15000}]},
-  {nombre:'Crema de afeitar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5000}]},
-  {nombre:'Tónico capilar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:8000}]},
-  {nombre:'Minoxidil', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:18000}]},
-  {nombre:'Toallón descartable (pack x10)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:4000}]},
+  // ══ INSUMOS — productos a la venta ══
+  {nombre:'Pomada para peinar', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:9000}]},
+  {nombre:'Cera moldeadora', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:10000}]},
+  {nombre:'Cera mate (matte)', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:11000}]},
+  {nombre:'Aceite para barba', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:8500}]},
+  {nombre:'Bálsamo para barba', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:9500}]},
+  {nombre:'Shampoo anticaída', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:7000}]},
+  {nombre:'Champú para barba', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:6500}]},
+  {nombre:'Gel fijador', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:5000}]},
+  {nombre:'Talco texturizante', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:6000}]},
+  {nombre:'Loción after shave', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:6500}]},
+  {nombre:'Colonia para hombre', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:12000}]},
+  {nombre:'Cepillo para barba', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:4500}]},
+  {nombre:'Peine de bolsillo', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:3000}]},
+  {nombre:'Peine de madera', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:5500}]},
+  {nombre:'Repuestos maquinita descartable (pack)', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:3500}]},
+  {nombre:'Navaja de afeitar tradicional', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:15000}]},
+  {nombre:'Crema de afeitar', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:5000}]},
+  {nombre:'Tónico capilar', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:8000}]},
+  {nombre:'Minoxidil', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:18000}]},
+  {nombre:'Toallón descartable (pack x10)', categoria:'Insumos', tamanos:[{nombre:'Unidad',precio:4000}]},
 ];
 
 const INSUMOS_BASICOS = [
@@ -1085,6 +1079,7 @@ function initApp() {
     switchTab(userRole === 'dueno' ? 'inicio' : 'caja');
   }
   subscribeData();
+  if (userRole === 'dueno') setTimeout(autoSeedInicial, 800);
   if (typeof initOffline === 'function') initOffline();
   if (typeof cargarWhatsapp === 'function') cargarWhatsapp();
   if (typeof chequearBackupDiario === 'function') chequearBackupDiario();
@@ -1689,6 +1684,40 @@ async function cargarHorarioAtencionEnConfig() {
   if (ea) ea.value = cfg.horaApertura;
   if (ec) ec.value = cfg.horaCierre;
   if (ed) ed.value = cfg.duracionTurno;
+}
+
+// ══════════ AUTO-CARGA INICIAL (sin botones, se ejecuta sola) ══════════
+async function autoSeedInicial() {
+  const ref = col('productos');
+  if (!ref) return;
+  try {
+    const snap = await ref.limit(1).get();
+    if (snap.empty) {
+      for (const p of CATALOGO_EJEMPLO) {
+        await ref.add({
+          nombre: p.nombre, categoria: p.categoria,
+          tamanos: p.tamanos, recetaPorTamano: {}
+        });
+      }
+      console.log('Catálogo cargado automáticamente');
+    }
+  } catch(e) { console.log('autoSeed productos skip:', e.message); }
+
+  const uid = getUserDoc();
+  if (!uid) return;
+  try {
+    const snapB = await db.collection('negocios').doc(uid).collection('barberos').limit(1).get();
+    if (snapB.empty) {
+      const defaultBarberos = ['Barbero 1', 'Barbero 2'];
+      for (const nombre of defaultBarberos) {
+        await db.collection('negocios').doc(uid).collection('barberos').add({
+          nombre, activo: true,
+          creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      console.log('Barberos de ejemplo cargados automáticamente');
+    }
+  } catch(e) { console.log('autoSeed barberos skip:', e.message); }
 }
 
 // ══════════ MENU CRUD ══════════
