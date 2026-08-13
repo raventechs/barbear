@@ -266,7 +266,29 @@
     .raven-hdr h3{font-size:16px;font-weight:700;}
     .btn-cerrar-modal{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);line-height:1;}
 
-  </style>
+  
+    /* ══ POSTE DE BARBERÍA GIRATORIO ══ */
+    .barber-pole-wrap { display:flex; justify-content:center; align-items:center; padding:14px 0 6px; }
+    .barber-pole { position:relative; width:46px; height:110px; border-radius:23px; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+    .barber-pole::before {
+      content:''; position:absolute; inset:-40px -10px;
+      background:repeating-linear-gradient(
+        45deg,
+        #c0392b 0 14px,
+        #ffffff 14px 28px,
+        #1a3d8f 28px 42px,
+        #ffffff 42px 56px
+      );
+      animation: barberSpin 1.1s linear infinite;
+    }
+    .barber-pole .cap-top, .barber-pole .cap-bottom {
+      position:absolute; left:-4px; right:-4px; height:14px; background:var(--accent2, #C9A227);
+      border-radius:6px; z-index:2;
+    }
+    .barber-pole .cap-top { top:-4px; }
+    .barber-pole .cap-bottom { bottom:-4px; }
+    @keyframes barberSpin { from { background-position: 0 0; } to { background-position: 0 56px; } }
+</style>
 <script>
 // RavenTechs PWA Banner v1.1 — en el HEAD para capturar beforeinstallprompt temprano
 var __rtPWA = (function() {
@@ -369,7 +391,7 @@ var __rtPWA = (function() {
       Ingresar con Google
     </button>
     <button class="btn-cajero" id="loginCajeroBtn">
-      🥩 Ingresar como Punto de Venta
+      ✂️ Ingresar como Punto de Venta
     </button>
     <div class="login-error" id="loginError"></div>
   </div>
@@ -403,6 +425,7 @@ var __rtPWA = (function() {
 
   <!-- DASHBOARD MULTI-SUCURSAL -->
   <div class="section" id="sec-dashboard">
+    <div class="barber-pole-wrap"><div class="barber-pole"><div class="cap-top"></div><div class="cap-bottom"></div></div></div>
     <div style="background:var(--accent);color:#fff;padding:20px 16px 16px;margin-bottom:14px;">
       <div style="font-size:12px;opacity:.8">Bienvenido/a,</div>
       <div id="dashNombre" style="font-size:20px;font-weight:700;margin:4px 0 12px"></div>
@@ -425,6 +448,7 @@ var __rtPWA = (function() {
 
   <!-- DASHBOARD (inicio dueño) -->
   <div class="section" id="sec-inicio">
+    <div class="barber-pole-wrap"><div class="barber-pole"><div class="cap-top"></div><div class="cap-bottom"></div></div></div>
     <h2>📊 Panel del dueño</h2>
     <div id="dashCards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
       <div class="report-card"><h3>Hoy</h3><div class="big" id="dashHoy">-</div><p class="text-sm" id="dashHoyN">0 ventas</p></div>
@@ -433,7 +457,7 @@ var __rtPWA = (function() {
     </div>
     <div id="dashStockAlertas" style="margin-bottom:14px;"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <button onclick="switchTab('caja')" style="padding:16px;font-size:15px;font-weight:700;">🥩 Caja</button>
+      <button onclick="switchTab('caja')" style="padding:16px;font-size:15px;font-weight:700;">✂️ Caja</button>
       <button onclick="switchTab('menu')" style="padding:16px;font-size:15px;font-weight:700;">📋 Menú</button>
       <button onclick="switchTab('stock')" style="padding:16px;font-size:15px;font-weight:700;">📦 Stock</button>
       <button onclick="switchTab('historial')" style="padding:16px;font-size:15px;font-weight:700;">📜 Historial</button>
@@ -444,7 +468,7 @@ var __rtPWA = (function() {
   <div class="section" id="sec-caja">
     <!-- MODE BAR CAJA -->
     <div class="caja-mode-bar" id="cajaModeBar">
-      <button class="caja-mode-btn active" onclick="setCajaMode('catalogo')">🥩 Catálogo</button>
+      <button class="caja-mode-btn active" onclick="setCajaMode('catalogo')">✂️ Catálogo</button>
       <button class="caja-mode-btn" onclick="setCajaMode('importe')">💰 Importe</button>
       <button class="caja-mode-btn" id="modeTicketBtn" onclick="setCajaMode('ticket')" style="display:none">📸 Ticket</button>
     </div>
@@ -567,7 +591,7 @@ var __rtPWA = (function() {
   <div class="section" id="sec-stock">
     <h2>📦 Stock de insumos</h2>
     <button class="btn-success" style="width:100%;margin-bottom:8px" id="stockAddBtn">+ Agregar insumo</button>
-    <button class="btn-warning" style="width:100%;margin-bottom:14px" id="stockLoadBasicBtn">🥩 Cargar insumos básicos</button>
+    <button class="btn-warning" style="width:100%;margin-bottom:14px" id="stockLoadBasicBtn">💈 Cargar productos básicos</button>
     <div id="stockList"></div>
   </div>
 
@@ -698,7 +722,7 @@ var __rtPWA = (function() {
   <div class="modal">
     <h2 id="modalGastoTitle">Registrar gasto</h2>
     <label>Descripción</label>
-    <input type="text" id="gastoDesc" placeholder="Ej: Compra de carne, Alquiler, Luz...">
+    <input type="text" id="gastoDesc" placeholder="Ej: Compra de productos, Alquiler, Luz...">
     <label>Monto ($)</label>
     <input type="number" id="gastoMonto" placeholder="0" min="0">
     <label>Método de pago</label>
@@ -793,7 +817,8 @@ const GRUPOS_MAP = {
   'Cortes': 'Cortes',
   'Barba': 'Barba',
   'Combos': 'Combos',
-  'Extras': 'Extras'
+  'Extras': 'Extras',
+  'Productos': 'Productos'
 };
 
 const CATALOGO_EJEMPLO = [
@@ -815,29 +840,51 @@ const CATALOGO_EJEMPLO = [
   {nombre:'Lavado de pelo', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:4000}]},
   {nombre:'Perfilado de cejas', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:4000}]},
   {nombre:'Aplicación de cera/pomada', categoria:'Extras', tamanos:[{nombre:'Servicio',precio:3000}]},
+
+  // ── PRODUCTOS (venta al mostrador, precios ref. agosto 2026) ──
+  {nombre:'Pomada para peinar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:9000}]},
+  {nombre:'Cera moldeadora', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:10000}]},
+  {nombre:'Cera mate (matte)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:11000}]},
+  {nombre:'Aceite para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:8500}]},
+  {nombre:'Bálsamo para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:9500}]},
+  {nombre:'Shampoo anticaída', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:7000}]},
+  {nombre:'Champú para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6500}]},
+  {nombre:'Gel fijador', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5000}]},
+  {nombre:'Talco texturizante', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6000}]},
+  {nombre:'Loción after shave', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:6500}]},
+  {nombre:'Colonia para hombre', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:12000}]},
+  {nombre:'Cepillo para barba', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:4500}]},
+  {nombre:'Peine de bolsillo', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:3000}]},
+  {nombre:'Peine de madera', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5500}]},
+  {nombre:'Repuestos maquinita descartable (pack)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:3500}]},
+  {nombre:'Navaja de afeitar tradicional', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:15000}]},
+  {nombre:'Crema de afeitar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:5000}]},
+  {nombre:'Tónico capilar', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:8000}]},
+  {nombre:'Minoxidil', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:18000}]},
+  {nombre:'Toallón descartable (pack x10)', categoria:'Productos', tamanos:[{nombre:'Unidad',precio:4000}]},
 ];
 
 const INSUMOS_BASICOS = [
-  {nombre:'Asado de tira', unidad:'kg', cantidad:20, umbral:5},
-  {nombre:'Vacío', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Bife de chorizo', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Nalga', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Cuadril', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Lomo', unidad:'kg', cantidad:8, umbral:3},
-  {nombre:'Paleta', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Matambre', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Barbe picada común', unidad:'kg', cantidad:20, umbral:5},
-  {nombre:'Barbe picada especial', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Bondiola', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Costillitas de cerdo', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Pollo entero', unidad:'unidad', cantidad:15, umbral:5},
-  {nombre:'Suprema', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Pata muslo', unidad:'kg', cantidad:10, umbral:3},
-  {nombre:'Chorizo parrillero', unidad:'kg', cantidad:15, umbral:5},
-  {nombre:'Morcilla', unidad:'unidad', cantidad:20, umbral:5},
-  {nombre:'Chinchulines', unidad:'kg', cantidad:8, umbral:3},
-  {nombre:'Mollejas', unidad:'kg', cantidad:5, umbral:2},
-  {nombre:'Carbón', unidad:'bolsa', cantidad:20, umbral:5},
+  {nombre:'Pomada para peinar', unidad:'unidad', cantidad:15, umbral:4},
+  {nombre:'Cera moldeadora', unidad:'unidad', cantidad:15, umbral:4},
+  {nombre:'Cera mate (matte)', unidad:'unidad', cantidad:10, umbral:3},
+  {nombre:'Aceite para barba', unidad:'unidad', cantidad:12, umbral:3},
+  {nombre:'Bálsamo para barba', unidad:'unidad', cantidad:10, umbral:3},
+  {nombre:'Shampoo anticaída', unidad:'unidad', cantidad:8, umbral:2},
+  {nombre:'Champú para barba', unidad:'unidad', cantidad:8, umbral:2},
+  {nombre:'Gel fijador', unidad:'unidad', cantidad:15, umbral:4},
+  {nombre:'Talco texturizante', unidad:'unidad', cantidad:10, umbral:3},
+  {nombre:'Loción after shave', unidad:'unidad', cantidad:10, umbral:3},
+  {nombre:'Colonia para hombre', unidad:'unidad', cantidad:6, umbral:2},
+  {nombre:'Cepillo para barba', unidad:'unidad', cantidad:10, umbral:3},
+  {nombre:'Peine de bolsillo', unidad:'unidad', cantidad:15, umbral:4},
+  {nombre:'Repuestos maquinita descartable', unidad:'pack', cantidad:20, umbral:5},
+  {nombre:'Navaja de afeitar tradicional', unidad:'unidad', cantidad:5, umbral:2},
+  {nombre:'Crema de afeitar', unidad:'unidad', cantidad:8, umbral:2},
+  {nombre:'Tónico capilar', unidad:'unidad', cantidad:8, umbral:2},
+  {nombre:'Minoxidil', unidad:'unidad', cantidad:5, umbral:2},
+  {nombre:'Toallón descartable', unidad:'pack', cantidad:10, umbral:3},
+  {nombre:'Papel cuello descartable', unidad:'rollo', cantidad:10, umbral:3},
 ];
 
 // ══════════ STATE ══════════
@@ -2440,7 +2487,7 @@ function toast(msg) {
           const csv = rows.map(r => r.map(x => `"${x}"`).join(',')).join('\n');
           const a = document.createElement('a');
           a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-          a.download = 'carneAR-ventas-' + new Date().toISOString().split('T')[0] + '.csv';
+          a.download = 'barbeAR-ventas-' + new Date().toISOString().split('T')[0] + '.csv';
           a.click();
         }).catch(e => logError('exportCSV', e));
     } catch(e) { logError('exportCSV', e); }
@@ -2763,7 +2810,7 @@ function generarResumenCierre(ventas) {
     .map(([k,v]) => `  • ${nombreLabels[k]||k}: $${v.toLocaleString('es-AR')}`)
     .join('\n');
   const sucNombre = currentSucursal?.nombre || 'Principal';
-  return `🥩 *BarbeAR — Cierre de Caja*\n📅 ${hoy} | 🏪 ${sucNombre}\n\n🔢 Ventas: ${ventas.length}\n💰 Total: $${total.toLocaleString('es-AR')}\n\n📊 Desglose:\n${desgloseTxt}`;
+  return `💈 *BarbeAR — Cierre de Caja*\n📅 ${hoy} | 🏪 ${sucNombre}\n\n🔢 Ventas: ${ventas.length}\n💰 Total: $${total.toLocaleString('es-AR')}\n\n📊 Desglose:\n${desgloseTxt}`;
 }
 
 async function verResumenCierre() {
@@ -3011,7 +3058,7 @@ async function guardarNombreSuc(id) {
 }
 
 function enviarLinkWA(nombre, url) {
-  const txt = '🥩 *BarbeAR* — Acceso cajero: ' + nombre + '\n' + url;
+  const txt = '💈 *BarbeAR* — Acceso cajero: ' + nombre + '\n' + url;
   window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
 }
 
