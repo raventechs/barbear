@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Reservar turno — BarbeAR</title>
+<style>
+  :root { --bg:#0f0f0f; --surface:#1a1a1a; --text:#f0f0f0; --text2:#999; --borde:#333; --gold:#C9A227; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:16px; }
+  .wrap { max-width:480px; margin:0 auto; }
+  header { text-align:center; padding:24px 0 20px; }
+  header h1 { font-size:26px; font-weight:800; }
+  header h1 span { color:var(--gold); }
+  header p { color:var(--text2); font-size:13px; margin-top:4px; }
+  .step { display:none; }
+  .step.active { display:block; }
+  .step-title { font-size:15px; font-weight:700; margin-bottom:12px; color:var(--gold); }
+  .opciones { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+  .opcion-btn { background:var(--surface); border:1.5px solid var(--borde); color:var(--text); border-radius:10px; padding:14px 16px; text-align:left; font-size:15px; font-weight:600; cursor:pointer; transition:border-color .15s; }
+  .opcion-btn:active, .opcion-btn.sel { border-color:var(--gold); background:#242018; }
+  .opcion-btn .sub { display:block; font-size:12px; color:var(--text2); font-weight:400; margin-top:2px; }
+  .slots-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:20px; }
+  .slot-btn { background:var(--surface); border:1.5px solid var(--borde); color:var(--text); border-radius:8px; padding:10px 4px; font-size:14px; font-weight:600; cursor:pointer; }
+  .slot-btn:active, .slot-btn.sel { border-color:var(--gold); background:#242018; }
+  input[type=date] { width:100%; background:var(--surface); border:1.5px solid var(--borde); color:var(--text); border-radius:10px; padding:12px; font-size:15px; margin-bottom:20px; }
+  input[type=text], input[type=tel] { width:100%; background:var(--surface); border:1.5px solid var(--borde); color:var(--text); border-radius:10px; padding:12px; font-size:15px; margin-bottom:12px; }
+  label { font-size:13px; font-weight:600; display:block; margin-bottom:6px; color:var(--text2); }
+  .btn-primary { width:100%; background:var(--gold); color:#111; border:none; border-radius:10px; padding:15px; font-size:15px; font-weight:800; cursor:pointer; }
+  .btn-primary:disabled { opacity:.4; }
+  .btn-back { background:none; border:none; color:var(--text2); font-size:14px; cursor:pointer; margin-bottom:16px; padding:0; }
+  .resumen { background:var(--surface); border-radius:10px; padding:14px; margin-bottom:16px; font-size:14px; }
+  .resumen div { margin-bottom:4px; }
+  .resumen strong { color:var(--gold); }
+  .confirmado { text-align:center; padding:40px 20px; }
+  .confirmado .check { font-size:56px; margin-bottom:16px; }
+  .confirmado h2 { font-size:20px; margin-bottom:8px; }
+  .confirmado p { color:var(--text2); font-size:14px; margin-bottom:20px; }
+  .wa-btn { display:inline-block; background:#25D366; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:700; }
+  .loading, .error { text-align:center; padding:40px 20px; color:var(--text2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Barbe<span>AR</span></h1>
+    <p>Reservá tu turno online</p>
+  </header>
+
+  <div id="loadingBox" class="loading">Cargando...</div>
+  <div id="errorBox" class="error" style="display:none"></div>
+
+  <div id="pasos" style="display:none">
+
+    <!-- PASO 1: BARBERO -->
+    <div class="step active" id="step-barbero">
+      <div class="step-title">1. Elegí tu barbero</div>
+      <div class="opciones" id="listaBarberos"></div>
+    </div>
+
+    <!-- PASO 2: SERVICIO -->
+    <div class="step" id="step-servicio">
+      <button class="btn-back" onclick="irPaso('barbero')">← Volver</button>
+      <div class="step-title">2. Elegí el servicio</div>
+      <div class="opciones" id="listaServicios"></div>
+    </div>
+
+    <!-- PASO 3: FECHA -->
+    <div class="step" id="step-fecha">
+      <button class="btn-back" onclick="irPaso('servicio')">← Volver</button>
+      <div class="step-title">3. Elegí el día</div>
+      <input type="date" id="inputFecha" onchange="cargarHorarios()">
+    </div>
+
+    <!-- PASO 4: HORARIO -->
+    <div class="step" id="step-horario">
+      <button class="btn-back" onclick="irPaso('fecha')">← Volver</button>
+      <div class="step-title">4. Elegí el horario</div>
+      <div class="slots-grid" id="listaSlots"></div>
+    </div>
+
+    <!-- PASO 5: DATOS -->
+    <div class="step" id="step-datos">
+      <button class="btn-back" onclick="irPaso('horario')">← Volver</button>
+      <div class="step-title">5. Tus datos</div>
+      <div class="resumen" id="resumenTurno"></div>
+      <label>Nombre y apellido</label>
+      <input type="text" id="inputNombre" placeholder="Tu nombre">
+      <label>WhatsApp (opcional)</label>
+      <input type="tel" id="inputTelefono" placeholder="11 2345-6789">
+      <button class="btn-primary" onclick="confirmarReserva()">Confirmar turno</button>
+    </div>
+
+    <!-- CONFIRMADO -->
+    <div class="step" id="step-confirmado">
+      <div class="confirmado">
+        <div class="check">✅</div>
+        <h2>¡Turno reservado!</h2>
+        <p id="confirmadoDetalle"></p>
+        <a id="waConfirmLink" class="wa-btn" href="#" target="_blank">Avisar por WhatsApp</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ⚠️ PENDIENTE: mismo config que index.html, actualizar cuando exista el proyecto Firebase real
+const firebaseConfig = {
+  apiKey: "PENDIENTE_CREAR_PROYECTO_FIREBASE",
+  authDomain: "barbear-XXXXX.firebaseapp.com",
+  projectId: "barbear-XXXXX",
+  storageBucket: "barbear-XXXXX.firebasestorage.app",
+  messagingSenderId: "PENDIENTE",
+  appId: "PENDIENTE"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const params = new URLSearchParams(location.search);
+const negUid = params.get('neg');
+
+let negocio = {};
+let barberos = [];
+let servicios = [];
+let seleccion = { barberoId:null, barberoNombre:'', servicioId:null, servicioNombre:'', servicioPrecio:0, fecha:'', hora:'' };
+
+async function init() {
+  if (!negUid) {
+    mostrarError('Falta el código del negocio en el link. Pedile al barbero el link correcto.');
+    return;
+  }
+  try {
+    const negDoc = await db.collection('negocios').doc(negUid).get();
+    if (!negDoc.exists) {
+      mostrarError('No encontramos esta barbería.');
+      return;
+    }
+    negocio = negDoc.data();
+
+    const snapB = await db.collection('negocios').doc(negUid).collection('barberos').get();
+    barberos = snapB.docs.map(d => ({id:d.id, ...d.data()})).filter(b => b.activo !== false);
+
+    const snapP = await db.collection('negocios').doc(negUid).collection('productos').get();
+    servicios = snapP.docs.map(d => ({id:d.id, ...d.data()}));
+
+    if (!barberos.length) {
+      mostrarError('Esta barbería todavía no tiene barberos cargados.');
+      return;
+    }
+
+    renderBarberos();
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('pasos').style.display = 'block';
+
+    const fInput = document.getElementById('inputFecha');
+    const hoy = new Date();
+    fInput.min = hoy.toISOString().slice(0,10);
+    fInput.value = hoy.toISOString().slice(0,10);
+
+  } catch(e) {
+    mostrarError('Error al cargar: ' + e.message);
+  }
+}
+
+function mostrarError(msg) {
+  document.getElementById('loadingBox').style.display = 'none';
+  const eb = document.getElementById('errorBox');
+  eb.style.display = 'block';
+  eb.textContent = msg;
+}
+
+function renderBarberos() {
+  document.getElementById('listaBarberos').innerHTML = barberos.map(b =>
+    `<button class="opcion-btn" onclick="elegirBarbero('${b.id}','${b.nombre.replace(/'/g,"\\'")}')">${b.nombre}</button>`
+  ).join('');
+}
+
+function elegirBarbero(id, nombre) {
+  seleccion.barberoId = id;
+  seleccion.barberoNombre = nombre;
+  renderServicios();
+  irPaso('servicio');
+}
+
+function renderServicios() {
+  document.getElementById('listaServicios').innerHTML = servicios.map(s => {
+    const precio = s.tamanos && s.tamanos[0] ? s.tamanos[0].precio : 0;
+    return `<button class="opcion-btn" onclick='elegirServicio("${s.id}", ${JSON.stringify(s.nombre)}, ${precio})">
+      ${s.nombre}<span class="sub">$${precio.toLocaleString()}</span>
+    </button>`;
+  }).join('');
+}
+
+function elegirServicio(id, nombre, precio) {
+  seleccion.servicioId = id;
+  seleccion.servicioNombre = nombre;
+  seleccion.servicioPrecio = precio;
+  irPaso('fecha');
+}
+
+function irPaso(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step-'+id).classList.add('active');
+  if (id === 'horario') cargarHorarios();
+}
+
+async function cargarHorarios() {
+  const fecha = document.getElementById('inputFecha').value;
+  if (!fecha) return;
+  seleccion.fecha = fecha;
+
+  const diaSemana = new Date(fecha + 'T12:00:00').getDay(); // 0=domingo
+  const diasAtencion = negocio.diasAtencion || [1,2,3,4,5,6];
+  if (!diasAtencion.includes(diaSemana)) {
+    document.getElementById('listaSlots').innerHTML = '<p style="grid-column:1/-1;color:var(--text2);font-size:13px;">Cerrado ese día. Elegí otra fecha.</p>';
+    irPaso('horario');
+    return;
+  }
+
+  const horaApertura = negocio.horaApertura || '09:00';
+  const horaCierre = negocio.horaCierre || '20:00';
+  const duracion = negocio.duracionTurno || 45;
+
+  const [hIni,mIni] = horaApertura.split(':').map(Number);
+  const [hFin,mFin] = horaCierre.split(':').map(Number);
+  let mins = hIni*60+mIni;
+  const finMins = hFin*60+mFin;
+  const todosSlots = [];
+  while (mins + duracion <= finMins) {
+    const h = Math.floor(mins/60).toString().padStart(2,'0');
+    const m = (mins%60).toString().padStart(2,'0');
+    todosSlots.push(`${h}:${m}`);
+    mins += duracion;
+  }
+
+  let ocupados = [];
+  try {
+    const snap = await db.collection('negocios').doc(negUid).collection('turnos')
+      .where('fecha','==',fecha)
+      .where('barberoId','==',seleccion.barberoId)
+      .get();
+    ocupados = snap.docs.map(d => d.data().hora).filter((h,i,arr) => {
+      const est = snap.docs[i].data().estado;
+      return est !== 'cancelado';
+    });
+  } catch(e) { /* si falla, mostramos todos los horarios igual */ }
+
+  const disponibles = todosSlots.filter(h => !ocupados.includes(h));
+
+  irPaso('horario');
+  const cont = document.getElementById('listaSlots');
+  if (!disponibles.length) {
+    cont.innerHTML = '<p style="grid-column:1/-1;color:var(--text2);font-size:13px;">No quedan horarios ese día. Probá otra fecha.</p>';
+    return;
+  }
+  cont.innerHTML = disponibles.map(h =>
+    `<button class="slot-btn" onclick="elegirHora('${h}', this)">${h}</button>`
+  ).join('');
+}
+
+function elegirHora(hora, btn) {
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  seleccion.hora = hora;
+  setTimeout(() => {
+    renderResumen();
+    irPaso('datos');
+  }, 200);
+}
+
+function renderResumen() {
+  document.getElementById('resumenTurno').innerHTML = `
+    <div>💈 <strong>${seleccion.barberoNombre}</strong></div>
+    <div>✂️ ${seleccion.servicioNombre} — $${seleccion.servicioPrecio.toLocaleString()}</div>
+    <div>📅 ${seleccion.fecha} — ⏰ ${seleccion.hora}</div>
+  `;
+}
+
+async function confirmarReserva() {
+  const nombre = document.getElementById('inputNombre').value.trim();
+  if (!nombre) { alert('Ingresá tu nombre'); return; }
+  const telefono = document.getElementById('inputTelefono').value.trim();
+
+  const btn = document.querySelector('#step-datos .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Reservando...';
+
+  try {
+    await db.collection('negocios').doc(negUid).collection('turnos').add({
+      fecha: seleccion.fecha, hora: seleccion.hora,
+      barberoId: seleccion.barberoId, barberoNombre: seleccion.barberoNombre,
+      servicioId: seleccion.servicioId, servicioNombre: seleccion.servicioNombre, servicioPrecio: seleccion.servicioPrecio,
+      clienteNombre: nombre, clienteTelefono: telefono,
+      estado: 'pendiente', origen: 'cliente',
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('confirmadoDetalle').textContent =
+      `${seleccion.servicioNombre} con ${seleccion.barberoNombre} — ${seleccion.fecha} a las ${seleccion.hora}hs`;
+
+    const waMsg = encodeURIComponent(`Hola! Reservé un turno: ${seleccion.servicioNombre} con ${seleccion.barberoNombre} el ${seleccion.fecha} a las ${seleccion.hora}hs. Soy ${nombre}.`);
+    document.getElementById('waConfirmLink').href = `https://wa.me/?text=${waMsg}`;
+
+    irPaso('confirmado');
+  } catch(e) {
+    alert('Error al reservar: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Confirmar turno';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
