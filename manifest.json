@@ -3,8 +3,8 @@
   "short_name": "BarbeAR",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a1a",
-  "theme_color": "#1a1a1a",
+  "background_color": "#C9A227",
+  "theme_color": "#C9A227",
   "lang": "es",
   "icons": [
     {
