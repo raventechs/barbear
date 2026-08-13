@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BarbeAR — Sistema de punto de venta para barberías</title>
+  <meta name="description" content="Sistema de gestión para barberías argentinas. Control de caja, productos, sucursales y cierre del día por WhatsApp.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0C0808;
+      --rojo:     #CC2A2A;
+      --rojo-h:   #B52222;
+      --hueso:    #F0E6DC;
+      --gris:     #9A7A7A;
+      --card-bg:  #170E0E;
+      --card-bdr: #2D1A1A;
+      --lt-bg:    #FAF6F2;
+      --lt-card:  #FFFFFF;
+      --lt-text:  #1A0808;
+      --lt-sub:   #6B5050;
+      --lt-bdr:   #EAE0D8;
+      --font-d:   'Barlow Condensed', sans-serif;
+      --font-b:   'Inter', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--hueso); font-family: var(--font-b); line-height: 1.6; overflow-x: hidden; }
+
+    /* ── NAV ── */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 18px 48px; display: flex; align-items: center; justify-content: space-between; background: rgba(12,8,8,.9); backdrop-filter: blur(14px); border-bottom: 1px solid var(--card-bdr); }
+    .nav-logo { font-family: var(--font-d); font-weight: 900; font-size: 1.5rem; letter-spacing: .06em; color: #fff; }
+    .nav-logo span { color: var(--rojo); }
+    .nav-cta { background: var(--rojo); color: #fff; padding: 10px 22px; border-radius: 6px; font-size: .875rem; font-weight: 600; text-decoration: none; transition: background .2s; }
+    .nav-cta:hover { background: var(--rojo-h); }
+
+    /* ── HERO ── */
+    .hero { min-height: 100vh; padding: 130px 48px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; max-width: 1200px; margin: 0 auto; }
+    .hero-eyebrow { font-family: var(--font-d); font-size: .8rem; letter-spacing: .22em; color: var(--rojo); text-transform: uppercase; margin-bottom: 14px; }
+    .hero-headline { font-family: var(--font-d); font-weight: 900; font-size: clamp(3rem,4.5vw,5rem); line-height: .93; text-transform: uppercase; color: #fff; margin-bottom: 24px; }
+    .hero-headline .ac { color: var(--rojo); }
+    .hero-sub { font-size: 1.0625rem; color: var(--gris); max-width: 420px; margin-bottom: 40px; line-height: 1.7; }
+    .btn-demo { display: inline-flex; align-items: center; gap: 10px; background: var(--rojo); color: #fff; padding: 16px 32px; border-radius: 8px; font-size: 1rem; font-weight: 600; text-decoration: none; transition: background .2s, transform .15s; }
+    .btn-demo:hover { background: var(--rojo-h); transform: translateY(-1px); }
+    .btn-demo svg { width: 20px; height: 20px; fill: #fff; }
+    .hero-nota { margin-top: 12px; font-size: .78rem; color: var(--gris); }
+
+    /* ── MOCKUPS CONTAINER ── */
+    .mockups { position: relative; height: 420px; }
+
+    /* ══════════════════════════════════
+       MONITOR DE ESCRITORIO
+    ══════════════════════════════════ */
+    .desktop-group { position: absolute; left: 0; bottom: 0; display: flex; align-items: flex-end; gap: 14px; }
+
+    /* Cuerpo del monitor */
+    .mon-body {
+      background: #242424;
+      border-radius: 8px;
+      padding: 10px 10px 22px;
+      border: 2px solid #3A3A3A;
+      box-shadow:
+        0 8px 28px rgba(0,0,0,.55),
+        inset 0 1px 0 #333,
+        inset 0 -1px 0 #1A1A1A;
+      position: relative;
+      width: 296px;
+    }
+
+    /* Indicador de encendido (rojo, abajo a la derecha) */
+    .mon-power {
+      position: absolute;
+      bottom: 8px; right: 11px;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--rojo);
+      box-shadow: 0 0 6px var(--rojo);
+    }
+
+    /* Botón de menú (abajo al centro, decorativo) */
+    .mon-btn-row {
+      position: absolute;
+      bottom: 7px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 5px;
+    }
+    .mon-btn {
+      width: 6px; height: 6px;
+      border-radius: 1px;
+      background: #3A3A3A;
+      border: 1px solid #444;
+    }
+
+    /* Pantalla */
+    .mon-screen {
+      width: 100%;
+      height: 188px;
+      background: #0F1117;
+      border-radius: 3px;
+      overflow: hidden;
+      border: 1px solid #1E1E1E;
+    }
+
+    /* Cuello / soporte */
+    .mon-neck {
+      width: 44px; height: 26px;
+      background: #1D1D1D;
+      clip-path: polygon(22% 0%, 78% 0%, 88% 100%, 12% 100%);
+      margin: 0 auto;
+    }
+
+    /* Base */
+    .mon-base {
+      width: 148px; height: 9px;
+      background: #212121;
+      border-radius: 5px;
+      margin: 0 auto;
+      border: 1px solid #353535;
+      box-shadow: 0 2px 4px rgba(0,0,0,.4);
+    }
+
+    /* ── MOUSE ── */
+    .mouse-wrap { margin-bottom: 9px; }
+    .mouse {
+      width: 26px; height: 42px;
+      background: #272727;
+      border-radius: 13px 13px 9px 9px;
+      border: 1px solid #383838;
+      position: relative;
+      box-shadow:
+        0 4px 10px rgba(0,0,0,.45),
+        inset 0 1px 0 #333;
+    }
+    /* Divisor de botones */
+    .mouse::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 1px; height: 50%;
+      background: #363636;
+    }
+    /* Rueda de scroll */
+    .mouse::after {
+      content: '';
+      position: absolute;
+      top: 28%; left: 50%; transform: translateX(-50%);
+      width: 4px; height: 10px;
+      background: #3E3E3E;
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px #474747;
+    }
+
+    /* ── CONTENIDO APP EN MONITOR ── */
+    .app-bar { background: #1A0F0F; padding: 5px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #2D1A1A; }
+    .app-dot  { width: 6px; height: 6px; border-radius: 50%; background: var(--rojo); }
+    .app-ttl  { font-family: var(--font-d); font-size: .64rem; font-weight: 700; color: var(--hueso); letter-spacing: .06em; }
+    .dash { padding: 8px; }
+    .dash-r3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 7px; }
+    .d-stat { background: #1A0F0F; border: 1px solid #2D1A1A; border-radius: 4px; padding: 5px 7px; }
+    .d-lbl { font-size: .38rem; color: var(--gris); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+    .d-val { font-family: var(--font-d); font-size: .76rem; font-weight: 700; color: var(--hueso); }
+    .d-val.r { color: var(--rojo); }
+    .d-head { display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 2px 4px; }
+    .d-head span { font-size: .37rem; color: var(--gris); text-transform: uppercase; letter-spacing: .06em; }
+    .d-tr { display: grid; grid-template-columns: 2fr 1fr 1fr; padding: 4px; margin-bottom: 2px; background: #1A0F0F; border-radius: 3px; }
+    .d-td { font-size: .48rem; }
+    .d-td.n { color: var(--hueso); font-weight: 500; }
+    .d-td.q { color: var(--gris); }
+    .d-td.v { color: var(--rojo); font-weight: 600; }
+
+    /* ══════════════════════════════════
+       CELULAR
+    ══════════════════════════════════ */
+    .phone { position: absolute; right: 16px; bottom: 0; z-index: 2; }
+
+    .ph-frame {
+      position: relative;
+      background: #1C1C1C;
+      border-radius: 30px;
+      padding: 14px 8px 10px;
+      border: 2px solid #2C2C2C;
+      box-shadow:
+        0 24px 60px rgba(0,0,0,.7),
+        inset 0 1px 0 #333,
+        inset 0 -1px 0 #151515;
+      width: 155px;
+    }
+
+    /* Anillo interior (separa el bisel de la pantalla) */
+    .ph-inner-ring {
+      position: absolute;
+      inset: 4px;
+      border: 1.5px solid #2A2A2A;
+      border-radius: 27px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Botones laterales */
+    .ph-btn { position: absolute; background: #161616; }
+    .ph-v1  { left: -3px; top: 78px;  width: 3px; height: 22px; border-radius: 2px 0 0 2px; }
+    .ph-v2  { left: -3px; top: 107px; width: 3px; height: 22px; border-radius: 2px 0 0 2px; }
+    .ph-pw  { right: -3px; top: 98px; width: 3px; height: 34px; border-radius: 0 2px 2px 0; }
+
+    /* Dynamic island */
+    .ph-island { width: 52px; height: 15px; background: #000; border-radius: 8px; margin: 0 auto 10px; }
+
+    /* Pantalla */
+    .ph-screen {
+      background: #0F1117;
+      border-radius: 4px;
+      overflow: hidden;
+      min-height: 260px;
+      border: 1px solid #222;
+    }
+
+    .pos-hdr  { background: #1A0F0F; padding: 7px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2D1A1A; }
+    .pos-ttl  { font-family: var(--font-d); font-size: .7rem; font-weight: 700; color: var(--hueso); }
+    .pos-badge { background: var(--rojo); color: #fff; font-size: .42rem; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
+    .pos-list  { padding: 6px; }
+    .pos-item  { display: flex; justify-content: space-between; align-items: center; padding: 5px 6px; margin-bottom: 3px; background: #170E0E; border-radius: 4px; border: 1px solid #2D1A1A; }
+    .pos-in    { font-size: .5rem; color: var(--hueso); font-weight: 500; }
+    .pos-ip    { font-size: .5rem; color: var(--rojo); font-weight: 600; }
+    .pos-total { margin: 6px; padding: 6px; background: #1A0F0F; border-radius: 4px; border: 1px solid var(--rojo); display: flex; justify-content: space-between; align-items: center; }
+    .pos-tl    { font-size: .5rem; color: var(--gris); font-weight: 500; }
+    .pos-tv    { font-family: var(--font-d); font-size: .9rem; font-weight: 900; color: var(--hueso); }
+    .pos-btn   { margin: 0 6px 6px; background: var(--rojo); color: #fff; border-radius: 5px; padding: 7px; text-align: center; font-size: .6rem; font-weight: 600; }
+
+    /* ── FEATURES (FONDO CLARO) ── */
+    .features { background: var(--lt-bg); padding: 100px 48px; }
+    .feat-inner { max-width: 1200px; margin: 0 auto; }
+    .sec-lbl  { font-family: var(--font-d); font-size: .78rem; letter-spacing: .22em; color: var(--rojo); text-transform: uppercase; margin-bottom: 10px; }
+    .sec-ttl  { font-family: var(--font-d); font-weight: 900; font-size: clamp(2rem,3.2vw,3rem); line-height: 1; text-transform: uppercase; color: var(--lt-text); margin-bottom: 56px; }
+    .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+    .feat-card { background: var(--lt-card); border: 1px solid var(--lt-bdr); border-radius: 12px; padding: 28px 24px; transition: border-color .2s, box-shadow .2s; }
+    .feat-card:hover { border-color: var(--rojo); box-shadow: 0 4px 20px rgba(204,42,42,.08); }
+    .feat-icon { margin-bottom: 14px; line-height: 1; font-size: 2rem; }
+    .feat-ttl  { font-family: var(--font-d); font-weight: 700; font-size: 1.2rem; letter-spacing: .03em; text-transform: uppercase; color: var(--lt-text); margin-bottom: 8px; }
+    .feat-desc { font-size: .875rem; color: var(--lt-sub); line-height: 1.65; }
+
+    /* ── PROOF ── */
+    .proof { background: var(--card-bg); border-top: 1px solid var(--card-bdr); border-bottom: 1px solid var(--card-bdr); padding: 64px 48px; text-align: center; }
+    .proof-h  { font-family: var(--font-d); font-weight: 900; font-size: clamp(1.6rem,3vw,2.6rem); text-transform: uppercase; color: #fff; margin-bottom: 10px; }
+    .proof-h span { color: var(--rojo); }
+    .proof-s  { color: var(--gris); font-size: .9375rem; }
+    .proof-badges { display: flex; justify-content: center; gap: 16px; margin-top: 32px; flex-wrap: wrap; }
+    .proof-badge  { background: rgba(204,42,42,.1); border: 1px solid rgba(204,42,42,.25); padding: 9px 20px; border-radius: 50px; font-size: .875rem; color: var(--hueso); }
+
+    /* ── CTA ── */
+    .cta-wrap { padding: 120px 48px; text-align: center; max-width: 680px; margin: 0 auto; }
+    .cta-h  { font-family: var(--font-d); font-weight: 900; font-size: clamp(2.8rem,5vw,5rem); text-transform: uppercase; line-height: .93; color: #fff; margin-bottom: 20px; }
+    .cta-h span { color: var(--rojo); }
+    .cta-s  { color: var(--gris); font-size: 1rem; margin-bottom: 40px; }
+    .btn-g  { display: inline-flex; align-items: center; gap: 12px; background: #25D366; color: #fff; padding: 20px 42px; border-radius: 10px; font-size: 1.0625rem; font-weight: 600; text-decoration: none; transition: background .2s, transform .15s; }
+    .btn-g:hover { background: #1db954; transform: translateY(-2px); }
+    .btn-g svg { width: 24px; height: 24px; fill: #fff; }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--card-bdr); padding: 28px 48px; display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; }
+    .ft-logo { font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; color: var(--gris); }
+    .ft-logo span { color: var(--rojo); }
+    .ft-links { display: flex; gap: 24px; }
+    .ft-links a { font-size: .875rem; color: var(--gris); text-decoration: none; }
+    .ft-links a:hover { color: var(--hueso); }
+
+    /* ── ANIMACIONES ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    .hero-content { animation: fadeUp .55s ease both; }
+    .mockups      { animation: fadeUp .55s .18s ease both; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 960px) {
+      nav { padding: 16px 24px; }
+      .hero { grid-template-columns: 1fr; padding: 110px 24px 60px; gap: 40px; }
+      .mockups { height: 340px; }
+      .mon-body { width: 220px; }
+      .mon-screen { height: 154px; }
+      .mon-base { width: 120px; }
+      .features { padding: 60px 24px; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
+      .proof { padding: 48px 24px; }
+      .cta-wrap { padding: 80px 24px; }
+      footer { flex-direction: column; gap: 16px; text-align: center; padding: 24px; }
+    }
+    @media (max-width: 600px) {
+      .mockups { display: none; }
+      .feat-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <!-- Meta Pixel Code — RavenTechs BarbeAR ID: 1569448664621597 -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window,document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1569448664621597');
+  fbq('track', 'PageView');
+  </script>
+  <noscript>
+    <img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=1569448664621597&ev=PageView&noscript=1"/>
+  </noscript>
+  <!-- End Meta Pixel Code -->
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">BARBE<span>AR</span></div>
+  <a href="https://wa.me/5491136547592?text=Hola%21+Vi+BarbeAR+y+quiero+el+demo+de+7+d%C3%ADas" onclick="fbq('track','Contact')" class="nav-cta" target="_blank" rel="noopener">Pedí el demo gratis</a>
+</nav>
+
+<!-- HERO -->
+<section>
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Sistema para barberías argentinas</div>
+      <h1 class="hero-headline">
+        DE LA<br>VENTA AL<br>CIERRE DE CAJA —<br>
+        <span class="ac">TODO EN UNO</span>
+      </h1>
+      <p class="hero-sub">Sin instalaciones, sin papel, sin planillas. Tu barbería controlada desde la computadora o el celular.</p>
+      <a href="https://wa.me/5491136547592?text=Hola%21+Vi+BarbeAR+y+quiero+el+demo+de+7+d%C3%ADas" onclick="fbq('track','Contact')" class="btn-demo" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Probá 7 días gratis
+      </a>
+      <p class="hero-nota">Sin costo. Sin tarjeta. Solo mandá el mensaje.</p>
+    </div>
+
+    <!-- MOCKUPS -->
+    <div class="mockups">
+
+      <!-- MONITOR DE ESCRITORIO + MOUSE -->
+      <div class="desktop-group">
+
+        <div>
+          <!-- Cuerpo del monitor -->
+          <div class="mon-body">
+            <div class="mon-power"></div>
+            <div class="mon-btn-row">
+              <div class="mon-btn"></div>
+              <div class="mon-btn"></div>
+              <div class="mon-btn"></div>
+            </div>
+            <div class="mon-screen">
+              <div class="app-bar">
+                <div class="app-dot"></div>
+                <div class="app-ttl">BARBEAR — RESUMEN DEL DÍA</div>
+              </div>
+              <div class="dash">
+                <div class="dash-r3">
+                  <div class="d-stat"><div class="d-lbl">Ventas hoy</div><div class="d-val r">$1.248.000</div></div>
+                  <div class="d-stat"><div class="d-lbl">Tickets</div><div class="d-val">22</div></div>
+                  <div class="d-stat"><div class="d-lbl">Promedio</div><div class="d-val">$56.700</div></div>
+                </div>
+                <div class="d-head"><span>Producto</span><span>Kg</span><span>Total</span></div>
+                <div class="d-tr"><div class="d-td n">Asado</div><div class="d-td q">20 kg</div><div class="d-td v">$380.000</div></div>
+                <div class="d-tr"><div class="d-td n">Milanesa</div><div class="d-td q">16 kg</div><div class="d-td v">$320.000</div></div>
+                <div class="d-tr"><div class="d-td n">Vacío</div><div class="d-td q">14 kg</div><div class="d-td v">$259.000</div></div>
+                <div class="d-tr"><div class="d-td n">Peceto</div><div class="d-td q">9 kg</div><div class="d-td v">$189.000</div></div>
+              </div>
+            </div>
+          </div>
+          <!-- Cuello y base -->
+          <div class="mon-neck"></div>
+          <div class="mon-base"></div>
+        </div>
+
+        <!-- Mouse -->
+        <div class="mouse-wrap">
+          <div class="mouse"></div>
+        </div>
+
+      </div><!-- /desktop-group -->
+
+      <!-- CELULAR -->
+      <div class="phone">
+        <div class="ph-frame">
+          <!-- Anillo interior de bisel -->
+          <div class="ph-inner-ring"></div>
+          <!-- Botones laterales -->
+          <div class="ph-btn ph-v1"></div>
+          <div class="ph-btn ph-v2"></div>
+          <div class="ph-btn ph-pw"></div>
+          <!-- Dynamic island -->
+          <div class="ph-island"></div>
+          <!-- Pantalla -->
+          <div class="ph-screen">
+            <div class="pos-hdr">
+              <div class="pos-ttl">BARBEAR</div>
+              <div class="pos-badge">VENTA</div>
+            </div>
+            <div class="pos-list">
+              <div class="pos-item"><div class="pos-in">Asado x 2 kg</div><div class="pos-ip">$38.000</div></div>
+              <div class="pos-item"><div class="pos-in">Vacío x 1 kg</div><div class="pos-ip">$18.500</div></div>
+              <div class="pos-item"><div class="pos-in">Morcilla x 2</div><div class="pos-ip">$14.000</div></div>
+            </div>
+            <div class="pos-total">
+              <div class="pos-tl">TOTAL</div>
+              <div class="pos-tv">$70.500</div>
+            </div>
+            <div class="pos-btn">COBRAR</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /mockups -->
+  </div>
+</section>
+
+<!-- FEATURES (FONDO CLARO) -->
+<section class="features">
+  <div class="feat-inner">
+    <div class="sec-lbl">Lo que incluye</div>
+    <h2 class="sec-ttl">TODO LO QUE<br>NECESITA TU CARNICERÍA</h2>
+    <div class="feat-grid">
+
+      <div class="feat-card">
+        <div class="feat-icon">🥩</div>
+        <div class="feat-ttl">Productos y precios</div>
+        <p class="feat-desc">Actualizá los precios de tus servicios en segundos. Un toque y listo. Cálculo automático del total.</p>
+      </div>
+
+      <div class="feat-card">
+        <svg style="display:block;margin-bottom:14px" width="50" height="30" viewBox="0 0 50 30" xmlns="http://www.w3.org/2000/svg">
+          <rect width="50" height="30" rx="3.5" fill="#D97318"/>
+          <rect x="1.5" y="1.5" width="47" height="27" rx="2.5" fill="none" stroke="#F5A840" stroke-width="0.9"/>
+          <rect x="3" y="3" width="44" height="24" rx="1.5" fill="none" stroke="#F5A840" stroke-width="0.3" stroke-dasharray="2.5 2"/>
+          <text x="25" y="11" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="4.5" font-family="Arial,sans-serif" letter-spacing="1" font-weight="600">ARGENTINA</text>
+          <text x="25" y="23" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial,sans-serif" letter-spacing="0.5">$1000</text>
+        </svg>
+        <div class="feat-ttl">Caja del día</div>
+        <p class="feat-desc">Apertura, ventas y cierre de caja con resumen automático. Qué vendiste, cuánto y de qué.</p>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">📱</div>
+        <div class="feat-ttl">Cierre por WhatsApp</div>
+        <p class="feat-desc">Al cerrar el día, el resumen completo llega directo a tu WhatsApp. Sin estar presente en el local.</p>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🏪</div>
+        <div class="feat-ttl">Multi-sucursal</div>
+        <p class="feat-desc">¿Más de un local? Manejás todo desde un solo panel. Cada sucursal con su propio control independiente.</p>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">👤</div>
+        <div class="feat-ttl">Roles por puesto</div>
+        <p class="feat-desc">El dueño ve todo. El cajero solo carga ventas. Sin riesgo de que alguien toque lo que no debe.</p>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">📊</div>
+        <div class="feat-ttl">Reportes y estadísticas</div>
+        <p class="feat-desc">Qué se vende más, en qué horario, cuánto. Tomá decisiones con los datos reales de tu negocio.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<div class="proof">
+  <div class="proof-h">BARBERÍAS ARGENTINAS <span>YA LO USAN</span></div>
+  <p class="proof-s">Funcionando en producción real en Argentina</p>
+  <div class="proof-badges">
+    <div class="proof-badge">✅ Funciona desde el celular</div>
+    <div class="proof-badge">✅ Sin instalación</div>
+    <div class="proof-badge">✅ Sin hardware adicional</div>
+    <div class="proof-badge">✅ Soporte por WhatsApp</div>
+  </div>
+</div>
+
+<!-- CTA FINAL -->
+<section class="cta-wrap">
+  <h2 class="cta-h">7 DÍAS DE<br><span>DEMO GRATIS</span></h2>
+  <p class="cta-s">Probalo con tus productos y tus precios reales. Sin costo, sin compromiso.</p>
+  <a href="https://wa.me/5491136547592?text=Hola%21+Vi+BarbeAR+y+quiero+el+demo+de+7+d%C3%ADas" onclick="fbq('track','Contact')" class="btn-g" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Escribinos por WhatsApp
+  </a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-logo">RAVEN<span>TECHS</span></div>
+  <div class="ft-links">
+    <a href="https://wa.me/5491136547592" onclick="fbq('track','Contact')" target="_blank" rel="noopener">WhatsApp</a>
+    <a href="mailto:raventechsinfo@gmail.com">Email</a>
+    <a href="https://barbear.raventechsapp.com" target="_blank" rel="noopener">Acceder a la app</a>
+  </div>
+</footer>
+
+</body>
+</html>
