@@ -1688,6 +1688,7 @@ async function cargarHorarioAtencionEnConfig() {
 
 // ══════════ AUTO-CARGA INICIAL (sin botones, se ejecuta sola) ══════════
 async function autoSeedInicial() {
+  toast('🔎 Revisando catálogo...');
   const ref = col('productos');
   if (!ref) { toast('⚠️ autoSeed: no hay usuario logueado'); return; }
   try {
@@ -1699,7 +1700,9 @@ async function autoSeedInicial() {
           tamanos: p.tamanos, recetaPorTamano: {}
         });
       }
-      toast('✅ Catálogo cargado automáticamente');
+      toast('✅ Catálogo cargado automáticamente (' + CATALOGO_EJEMPLO.length + ' items)');
+    } else {
+      toast('ℹ️ Ya hay ' + snap.size + '+ productos cargados, no se repite');
     }
   } catch(e) { toast('❌ Error cargando catálogo: ' + e.message); }
 
@@ -1716,6 +1719,8 @@ async function autoSeedInicial() {
         });
       }
       toast('✅ Barberos de ejemplo cargados');
+    } else {
+      toast('ℹ️ Ya hay barberos cargados, no se repite');
     }
   } catch(e) { toast('❌ Error cargando barberos: ' + e.message); }
 }
