@@ -2718,6 +2718,11 @@ async function cargarCliente(user) {
     const datos = clienteSnap.data();
     clienteActual = datos;
 
+    // Guardar/actualizar el uid en el registro de cliente (para el panel de actividad)
+    if (datos.uid !== user.uid) {
+      clienteRef.set({ uid: user.uid }, { merge: true }).catch(() => {});
+    }
+
     // Verificar cuenta activa
     if (!datos.activo) {
       mostrarInactivo();
