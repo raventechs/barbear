@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.5
-  Fecha de esta versión: 2026-07-26
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.6
+  Fecha de esta versión: 25/10/2026
+  v2.6: BACKUP ESTÁNDAR devuelto (se había perdido al reescribir): automático diario que baja el archivo, botón manual y restaurar
+  en Configuración. Incluye sucursales, gastos, proveedores y vuelve las fechas a su tipo al restaurar.
   Cambios respecto a v1.2: Gastos y Proveedores como features
   plus (bloqueados por defecto, se activan desde panel RavenTechs
   5 toques + PIN 2580). Gastos: CRUD completo con filtro
@@ -595,6 +597,14 @@ var __rtPWA = (function() {
       <button class="btn-warning" id="configCleanDupBtn">🧹 Limpiar duplicados</button>
     </div>
     <div class="config-group">
+      <h3>💾 Backup de datos</h3>
+      <p style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Una copia de tus ventas, gastos, turnos, productos, barberos, proveedores y sucursales. Se baja sola una vez por día al entrar; también podés bajarla cuando quieras o restaurar una anterior.</p>
+      <button class="btn-save" id="configBackupBtn" onclick="generarBackup(false)">📥 Descargar backup ahora</button>
+      <button class="btn-warning" id="configRestoreBtn" onclick="document.getElementById('inputRestaurarBackup').click()">📤 Restaurar desde un archivo</button>
+      <input type="file" id="inputRestaurarBackup" accept=".json,application/json" style="display:none" onchange="restaurarBackup(this)">
+      <p style="font-size:0.75rem;color:var(--text2);margin-top:8px">Último backup: <span id="ultimoBackupFecha">—</span></p>
+    </div>
+    <div class="config-group">
       <h3>Cuenta</h3>
       <button class="btn-danger" id="configLogoutBtn">🚪 Cerrar sesión</button>
     </div>
@@ -1081,6 +1091,144 @@ function loginCajero() {
   };
   openPin('PIN Punto de Venta');
 }
+
+// ══════════ BACKUP ESTÁNDAR 2.6 ══════════
+// Automático: una vez por día al entrar (solo el dueño). Baja el archivo JSON al dispositivo y deja una copia
+// en IndexedDB (las últimas 7). Manual y restaurar: Configuración → 💾 Backup de datos.
+// Las fechas de Firestore (Timestamp) se guardan con una marca reversible para volver a ser fechas al restaurar.
+const BK_APP = 'BarbeAR', BK_LS = 'barbear-ultimo-backup', BK_LINKS = 'barbearLinks';
+const BK_PRINCIPAL = ['productos', 'insumos', 'proveedores', 'barberos'];   // colecciones del negocio principal compartidas con las sucursales
+const BK_POR_SUC = ['ventas', 'gastos', 'turnos'];        // colecciones que además existen dentro de cada sucursal
+const BK_NO_RESTAURAR = ['features', 'limiteSucursales', 'uid', 'activo']; // plan y permisos: nunca se pisan desde un archivo
+
+function _bkHoy() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _bkSer(v) {
+  if (v && typeof v === 'object') {
+    if (typeof v.toMillis === 'function' && 'seconds' in v && 'nanoseconds' in v) return { __ts: [v.seconds, v.nanoseconds] };
+    if (Array.isArray(v)) return v.map(_bkSer);
+    const o = {}; Object.keys(v).forEach(k => { o[k] = _bkSer(v[k]); }); return o;
+  }
+  return v;
+}
+function _bkRev(v) {
+  if (v && typeof v === 'object') {
+    if (Array.isArray(v)) return v.map(_bkRev);
+    if (Array.isArray(v.__ts) && v.__ts.length === 2) return new firebase.firestore.Timestamp(v.__ts[0], v.__ts[1]);
+    const o = {}; Object.keys(v).forEach(k => { o[k] = _bkRev(v[k]); }); return o;
+  }
+  return v;
+}
+async function _bkLeer(ref) {
+  const s = await ref.get();
+  return s.docs.map(d => Object.assign({ _id: d.id }, _bkSer(d.data())));
+}
+function _bkIdb(fecha, json) {
+  return new Promise(function (res) {
+    try {
+      const rq = indexedDB.open('barbear-backup', 1);
+      rq.onupgradeneeded = function () { rq.result.createObjectStore('b', { keyPath: 'fecha' }); };
+      rq.onsuccess = function () {
+        const idb = rq.result, tx = idb.transaction('b', 'readwrite'), st = tx.objectStore('b');
+        st.put({ fecha: fecha, json: json });
+        st.getAllKeys().onsuccess = function (e) { const ks = e.target.result.sort(); while (ks.length > 7) st.delete(ks.shift()); };
+        tx.oncomplete = function () { idb.close(); res(true); };
+        tx.onerror = tx.onabort = function () { idb.close(); res(false); };
+      };
+      rq.onerror = function () { res(false); };
+    } catch (e) { res(false); }
+  });
+}
+function _bkDescargar(json, fecha) {
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'barbear-backup-' + fecha + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+async function generarBackup(silencioso) {
+  if (userRole !== 'dueno') { if (!silencioso) toast('Solo el dueño puede hacer el backup'); return; }
+  const uid = getUserDoc(); if (!uid) return;
+  try {
+    if (!silencioso) toast('Preparando backup…');
+    const base = db.collection('negocios').doc(uid);
+    const raiz = await base.get();
+    const datos = {};
+    for (const n of BK_PRINCIPAL.concat(BK_POR_SUC)) datos[n] = await _bkLeer(base.collection(n));
+    const sucSnap = await base.collection('sucursales').get();
+    const sucursales = [];
+    for (const s of sucSnap.docs) {
+      const sd = {};
+      for (const n of BK_POR_SUC) sd[n] = await _bkLeer(s.ref.collection(n));
+      sucursales.push(Object.assign({ _id: s.id }, _bkSer(s.data()), { _datos: sd }));
+    }
+    const linksSnap = await db.collection(BK_LINKS).where('uid', '==', uid).get();
+    const fecha = _bkHoy();
+    const backup = {
+      app: BK_APP, version: '2.6', fecha: new Date().toISOString(), uid: uid,
+      negocio: raiz.exists ? _bkSer(raiz.data()) : {}, datos: datos, sucursales: sucursales,
+      links: linksSnap.docs.map(d => Object.assign({ _id: d.id }, d.data()))
+    };
+    const json = JSON.stringify(backup);
+    _bkDescargar(json, fecha);
+    await _bkIdb(fecha, json);
+    try { localStorage.setItem(BK_LS, fecha); } catch (e) {}
+    const el = document.getElementById('ultimoBackupFecha'); if (el) el.textContent = fecha;
+    if (!silencioso) toast('✅ Backup descargado');
+  } catch (e) { logError('generarBackup', e.message); if (!silencioso) toast('Error al generar backup: ' + e.message); }
+}
+async function _bkCommit(ops) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const batch = db.batch();
+    ops.slice(i, i + 400).forEach(function (o) { if (o[2]) batch.set(o[0], o[1], { merge: true }); else batch.set(o[0], o[1]); });
+    await batch.commit();
+  }
+}
+async function restaurarBackup(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    if (userRole !== 'dueno') { toast('Solo el dueño puede restaurar'); return; }
+    const bk = JSON.parse(await file.text());
+    if (bk.app !== BK_APP || !bk.datos) { toast('El archivo no es un backup de ' + BK_APP); return; }
+    let total = 0;
+    Object.keys(bk.datos).forEach(function (k) { total += (bk.datos[k] || []).length; });
+    (bk.sucursales || []).forEach(function (s) { total += 1; Object.keys(s._datos || {}).forEach(function (k) { total += (s._datos[k] || []).length; }); });
+    if (!confirm('Se van a volver a cargar ' + total + ' registros en tu cuenta. Los que ya existen se reemplazan por los del archivo; el resto queda como está. ¿Continuar?')) return;
+    toast('Restaurando…');
+    const uid = getUserDoc(), base = db.collection('negocios').doc(uid), ops = [];
+    const neg = _bkRev(bk.negocio || {}); BK_NO_RESTAURAR.forEach(function (k) { delete neg[k]; });
+    if (Object.keys(neg).length) ops.push([base, neg, true]);
+    const meter = function (ref, lista) {
+      (lista || []).forEach(function (d) { const r = Object.assign({}, d), id = r._id; delete r._id; if (id) ops.push([ref.doc(id), _bkRev(r)]); });
+    };
+    BK_PRINCIPAL.concat(BK_POR_SUC).forEach(function (n) { meter(base.collection(n), bk.datos[n]); });
+    (bk.sucursales || []).forEach(function (s) {
+      const r = Object.assign({}, s), id = r._id, sd = r._datos || {}; delete r._id; delete r._datos;
+      if (!id) return;
+      const sref = base.collection('sucursales').doc(id);
+      ops.push([sref, _bkRev(r)]);
+      BK_POR_SUC.forEach(function (n) { meter(sref.collection(n), sd[n]); });
+    });
+    (bk.links || []).forEach(function (l) {
+      const r = Object.assign({}, l), id = r._id; delete r._id;
+      if (id) ops.push([db.collection(BK_LINKS).doc(id), Object.assign(r, { uid: uid })]);
+    });
+    await _bkCommit(ops);
+    toast('✅ Backup restaurado (' + ops.length + ' registros)');
+  } catch (e) { logError('restaurarBackup', e.message); toast('Error al restaurar: ' + e.message); }
+  finally { input.value = ''; }
+}
+function chequearBackupDiario() {
+  if (userRole !== 'dueno') return;
+  let ultimo = null; try { ultimo = localStorage.getItem(BK_LS); } catch (e) {}
+  const el = document.getElementById('ultimoBackupFecha'); if (el && ultimo) el.textContent = ultimo;
+  if (ultimo !== _bkHoy()) setTimeout(function () { generarBackup(true); }, 5000);
+}
+// ══════════ FIN BACKUP ══════════
 
 // ══════════ APP INIT ══════════
 function initApp() {
