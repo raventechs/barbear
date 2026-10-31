@@ -1804,6 +1804,26 @@ function cerrarModalTurno() {
   document.getElementById('modalTurno').classList.remove('show');
 }
 
+// Horarios ocupados (solo fecha/barbero/hora, sin datos del cliente): es lo único que la página pública de reservas puede leer.
+function marcarOcupado(fecha, barberoId, hora, ocupado) {
+  try {
+    const uid = getUserDoc(); if (!uid || !fecha || !barberoId || !hora) return;
+    const r = db.collection('negocios').doc(uid).collection('ocupados').doc(fecha + '_' + barberoId + '_' + hora);
+    (ocupado ? r.set({ fecha, barberoId, hora }) : r.delete()).catch(function () {});
+  } catch (e) {}
+}
+// Una sola vez por dispositivo: copia los turnos futuros que ya existían al registro de horarios ocupados
+async function backfillOcupados() {
+  try {
+    const uid = getUserDoc(); if (!uid || userRole === 'cajero') return;
+    const k = 'barbear_ocup_v1_' + uid; if (localStorage.getItem(k)) return;
+    const hoy = new Date().toISOString().slice(0, 10);
+    const snap = await db.collection('negocios').doc(uid).collection('turnos').where('fecha', '>=', hoy).get();
+    for (const d of snap.docs) { const t = d.data(); if (t.estado !== 'cancelado') marcarOcupado(t.fecha, t.barberoId, t.hora, true); }
+    localStorage.setItem(k, '1');
+  } catch (e) {}
+}
+
 async function guardarTurnoManual() {
   const ref = col('turnos');
   if (!ref) return;
@@ -1831,6 +1851,7 @@ async function guardarTurnoManual() {
       estado: 'pendiente', origen: 'staff',
       creadoEn: firebase.firestore.FieldValue.serverTimestamp()
     });
+    marcarOcupado(fecha, selB.value, hora, true);
     cerrarModalTurno();
     toast('✅ Turno agregado');
     renderTurnos();
@@ -1871,6 +1892,8 @@ async function cancelarTurno(turnoId) {
   if (!confirm('¿Cancelar este turno?')) return;
   try {
     await ref.doc(turnoId).update({estado:'cancelado'});
+    const _t = turnosDelDia.find(t => t.id === turnoId);
+    if (_t) marcarOcupado(_t.fecha, _t.barberoId, _t.hora, false);
     toast('Turno cancelado');
     renderTurnos();
   } catch(e) { toast('Error: '+e.message); }
@@ -2802,9 +2825,15 @@ async function iniciarCajeroLink(codigo) {
     if (!doc.exists) { showLogin(); return; }
     const d = doc.data();
     ownerUid = d.uid;
+    if (!auth.currentUser) { try { await auth.signInAnonymously(); } catch(_) {} }
     currentUser = auth.currentUser;
     currentSucursal = { id: d.sucursalId, nombre: d.nomSucursal || 'Sucursal' };
     userRole = 'cajero';
+    // Registra a este cajero como miembro de la sucursal (las reglas solo dejan operar a los registrados con un código válido)
+    try {
+      await db.collection('negocios').doc(d.uid).collection('cajeros').doc(currentUser.uid)
+        .set({ codigo, sucursalId: d.sucursalId, ultimoAcceso: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    } catch(e) { console.warn('cajero', e); }
     try {
       const neg = await db.collection('negocios').doc(d.uid).get();
       if (neg.exists && neg.data().features) features = Object.assign(features, neg.data().features);
@@ -2820,6 +2849,7 @@ async function iniciarCajeroLink(codigo) {
 async function verificarMultiSucursal() {
   const uid = getUserDoc();
   if (!uid) return;
+  backfillOcupados();
   try {
     const neg = await db.collection('negocios').doc(uid).get();
     if (neg.exists) {

@@ -238,14 +238,12 @@ async function cargarHorarios() {
 
   let ocupados = [];
   try {
-    const snap = await db.collection('negocios').doc(negUid).collection('turnos')
+    // Registro público de horarios ocupados (sin datos de clientes)
+    const snap = await db.collection('negocios').doc(negUid).collection('ocupados')
       .where('fecha','==',fecha)
       .where('barberoId','==',seleccion.barberoId)
       .get();
-    ocupados = snap.docs.map(d => d.data().hora).filter((h,i,arr) => {
-      const est = snap.docs[i].data().estado;
-      return est !== 'cancelado';
-    });
+    ocupados = snap.docs.map(d => d.data().hora);
   } catch(e) { /* si falla, mostramos todos los horarios igual */ }
 
   const disponibles = todosSlots.filter(h => !ocupados.includes(h));
@@ -289,6 +287,16 @@ async function confirmarReserva() {
   btn.textContent = 'Reservando...';
 
   try {
+    // Primero se reserva el horario (si otra persona lo tomó antes, Firestore lo rechaza y no hay doble reserva)
+    try {
+      await db.collection('negocios').doc(negUid).collection('ocupados')
+        .doc(seleccion.fecha + '_' + seleccion.barberoId + '_' + seleccion.hora)
+        .set({ fecha: seleccion.fecha, barberoId: seleccion.barberoId, hora: seleccion.hora });
+    } catch (eOc) {
+      btn.disabled = false; btn.textContent = 'Confirmar turno';
+      alert('Ese horario acaba de ser tomado. Elegí otro, por favor.');
+      return;
+    }
     await db.collection('negocios').doc(negUid).collection('turnos').add({
       fecha: seleccion.fecha, hora: seleccion.hora,
       barberoId: seleccion.barberoId, barberoNombre: seleccion.barberoNombre,
