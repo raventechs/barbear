@@ -1040,8 +1040,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Detectar link de cajero
   const _urlParams = new URLSearchParams(location.search);
-  const _codigoLink = _urlParams.get('s');
-  if (_codigoLink) {
+  // El código de sucursal se recuerda en el dispositivo: la app instalada (PWA) abre sin ?s= y antes quedaba sin sucursal
+  const _codigoUrl = _urlParams.get('s');
+  let _codigoLink = _codigoUrl;
+  try { if (_codigoLink) localStorage.setItem('barbear_cod_cajero', _codigoLink); else _codigoLink = localStorage.getItem('barbear_cod_cajero'); } catch(_) {}
+  if (_codigoUrl) {
     auth.signInAnonymously().catch(e => logError('anonAuth', e.message));
   }
 
@@ -1049,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loading').style.display = 'none';
     auth.onAuthStateChanged(user => {
       if (user && !user.isAnonymous) {
+        try { localStorage.removeItem('barbear_cod_cajero'); } catch(_) {}   // un dueño/admin iniciando sesión: este dispositivo deja de ser caja
         if (appRunning && currentUser && currentUser.uid === user.uid) return;
         appRunning = true;
         // Verificar cliente y cargar sus features
@@ -2822,7 +2826,7 @@ function toast(msg) {
 async function iniciarCajeroLink(codigo) {
   try {
     const doc = await db.collection('barbearLinks').doc(codigo).get();
-    if (!doc.exists) { showLogin(); return; }
+    if (!doc.exists) { try { localStorage.removeItem('barbear_cod_cajero'); } catch(_) {} showLogin(); return; }
     const d = doc.data();
     ownerUid = d.uid;
     if (!auth.currentUser) { try { await auth.signInAnonymously(); } catch(_) {} }
