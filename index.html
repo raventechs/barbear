@@ -702,6 +702,12 @@ var __rtPWA = (function() {
       <button class="btn-warning" id="configCleanDupBtn">🧹 Limpiar duplicados</button>
     </div>
     <div class="config-group">
+      <h3>🎓 Modo Práctica</h3>
+      <p style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Carga una barbería de ejemplo: 3 barberos, ventas de la última semana, gastos, proveedores y turnos de los próximos días. Sirve para aprender o mostrar la app. Todo queda marcado y se puede quitar sin tocar tus datos reales.</p>
+      <button class="btn-warning" id="configPracticaBtn">🎓 Cargar barbería de práctica</button>
+      <button class="btn-danger" id="configPracticaQuitarBtn">🧽 Quitar datos de práctica</button>
+    </div>
+    <div class="config-group">
       <h3>💾 Backup de datos</h3>
       <p style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Una copia de tus ventas, gastos, turnos, productos, barberos, proveedores y sucursales. Se baja sola una vez por día al entrar; también podés bajarla cuando quieras o restaurar una anterior.</p>
       <button class="btn-save" id="configBackupBtn" onclick="generarBackup(false)">📥 Descargar backup ahora</button>
@@ -1109,6 +1115,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Config
   document.getElementById('configResetBtn').onclick = restablecerCatalogo;
   document.getElementById('configCleanDupBtn').onclick = limpiarDuplicados;
+  document.getElementById('configPracticaBtn').onclick = cargarPractica;
+  document.getElementById('configPracticaQuitarBtn').onclick = quitarPractica;
 
   // Gastos
   document.getElementById('gastoAddBtn').onclick = () => openGastoModal(null);
@@ -3331,6 +3339,76 @@ function abrirModalSucursalConfig() {
     </div>`;
   lista.insertBefore(div, lista.firstChild);
   document.getElementById('inlineNuevaSucNom')?.focus();
+}
+
+// ══════════ MODO PRÁCTICA ══════════
+// Todo lo que se crea acá lleva _demo:true y se puede quitar sin tocar datos reales.
+const _rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+async function _commitOps(ops) {
+  for (let i=0; i<ops.length; i+=400) {
+    const b = db.batch();
+    ops.slice(i,i+400).forEach(([ref,data]) => data === null ? b.delete(ref) : b.set(ref,data));
+    await b.commit();
+  }
+}
+async function cargarPractica() {
+  const uid = getUserDoc(); if (!uid) return;
+  if (!confirm('Se carga una barbería de práctica: barberos, servicios, ventas de 7 días, gastos y turnos de mentira. Podés quitarlos después. ¿Seguir?')) return;
+  try {
+    const base = db.collection('negocios').doc(uid);
+    const ya = await base.collection('barberos').where('_demo','==',true).get();
+    if (!ya.empty) { toast('Ya hay una práctica cargada. Quitala primero.'); return; }
+    toast('Cargando práctica…');
+    const ops = [], hoy = new Date();
+    const barberos = ['Matías','Nicolás','Facundo'].map(nombre => { const r = base.collection('barberos').doc(); ops.push([r,{nombre,activo:true,creadoEn:firebase.firestore.Timestamp.fromDate(hoy),_demo:true}]); return {id:r.id,nombre}; });
+    const catalogo = (productos && productos.length) ? productos.map(p => ({nombre:p.nombre,tamanos:p.tamanos||[{nombre:'Servicio',precio:p.precio||10000}]})) : CATALOGO_EJEMPLO;
+    if (!productos || !productos.length) CATALOGO_EJEMPLO.forEach(p => ops.push([base.collection('productos').doc(), {nombre:p.nombre,categoria:p.categoria,tamanos:p.tamanos,recetaPorTamano:{},_demo:true}]));
+    const provs = [['Distribuidora Barber Sur','Insumos y productos'],['Casa de Peluquería Norte','Máquinas y repuestos']];
+    const provRefs = provs.map(([nombre,rubro]) => { const r = base.collection('proveedores').doc(); ops.push([r,{nombre,telefono:'11 5555-'+_rnd(1000,9999),rubro,notas:'Proveedor de práctica',_demo:true}]); return {id:r.id,nombre}; });
+    for (let d=0; d<7; d++) {
+      const dia = new Date(hoy); dia.setDate(hoy.getDate()-d);
+      const cant = _rnd(9,16);
+      for (let k=0; k<cant; k++) {
+        const p = catalogo[_rnd(0,catalogo.length-1)], t = p.tamanos[0], b = barberos[_rnd(0,barberos.length-1)];
+        const r = Math.random(), metodo = r<0.5 ? 'efectivo' : (r<0.8 ? 'mercadopago' : 'transferencia');
+        const f = new Date(dia); f.setHours(_rnd(10,20), _rnd(0,59), _rnd(0,59));
+        ops.push([base.collection('ventas').doc(), {items:[{nombre:p.nombre,tamano:t.nombre,precio:t.precio,cantidad:1}], total:t.precio, metodo, barbero:b.nombre, fechaDia:f.toISOString().slice(0,10), fecha:firebase.firestore.Timestamp.fromDate(f), fechaLocal:f.toISOString(), ts:firebase.firestore.Timestamp.fromDate(f), uid, _demo:true}]);
+      }
+    }
+    [['Alquiler del local',380000,1],['Luz e internet',52000,3],['Productos de barbería',96000,4],['Mantenimiento de máquinas',28000,6]].forEach(([descripcion,monto,dAtras]) => {
+      const f = new Date(hoy); f.setDate(hoy.getDate()-dAtras); f.setHours(10,0,0);
+      const pv = provRefs[_rnd(0,provRefs.length-1)];
+      ops.push([base.collection('gastos').doc(), {descripcion,monto,metodo:'transferencia',proveedorId:pv.id,proveedorNombre:pv.nombre,fecha:firebase.firestore.Timestamp.fromDate(f),fechaLocal:f.toISOString(),_demo:true}]);
+    });
+    // Turnos de los próximos 3 días (también bloquean el horario en la página pública de reservas)
+    const clientes = ['Lucas Pérez','Martín Gómez','Santiago Díaz','Tomás Ruiz','Joaquín Sosa','Bruno Acosta'];
+    for (let d=0; d<3; d++) {
+      const dia = new Date(hoy); dia.setDate(hoy.getDate()+d); const fechaStr = dia.toISOString().slice(0,10);
+      ['10:00','11:30','15:00','17:30'].forEach((hora,i) => {
+        const b = barberos[i % barberos.length], p = catalogo[_rnd(0,catalogo.length-1)];
+        ops.push([base.collection('turnos').doc(), {fecha:fechaStr,hora,barberoId:b.id,barberoNombre:b.nombre,servicioId:'',servicioNombre:p.nombre,servicioPrecio:p.tamanos[0].precio,clienteNombre:clientes[_rnd(0,clientes.length-1)],clienteTelefono:'11 4444-'+_rnd(1000,9999),estado:'pendiente',origen:'staff',creadoEn:firebase.firestore.Timestamp.fromDate(hoy),_demo:true}]);
+        ops.push([base.collection('ocupados').doc(fechaStr+'_'+b.id+'_'+hora), {fecha:fechaStr,barberoId:b.id,hora,_demo:true}]);
+      });
+    }
+    await _commitOps(ops);
+    toast('✅ Práctica cargada. Mirá Inicio, Turnos e Historial.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { logError('cargarPractica', e.message); toast('Error: '+e.message); }
+}
+async function quitarPractica() {
+  const uid = getUserDoc(); if (!uid) return;
+  if (!confirm('Se quitan SOLO los datos de práctica (barberos, ventas, gastos, proveedores, turnos y servicios marcados). Tus datos reales no se tocan. ¿Seguir?')) return;
+  try {
+    toast('Quitando práctica…');
+    const base = db.collection('negocios').doc(uid), ops = [];
+    for (const c of ['ventas','gastos','productos','proveedores','barberos','turnos','ocupados']) {
+      const s = await base.collection(c).where('_demo','==',true).get();
+      s.forEach(d => ops.push([d.ref,null]));
+    }
+    await _commitOps(ops);
+    toast('✅ Datos de práctica quitados');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { logError('quitarPractica', e.message); toast('Error: '+e.message); }
 }
 
 function genCodigo() {
