@@ -761,8 +761,8 @@ var __rtPWA = (function() {
   <!-- CUENTA INACTIVA -->
   <div class="section" id="sec-inactivo" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;padding:32px 24px;">
     <div style="font-size:56px;margin-bottom:16px">🔒</div>
-    <h2 style="color:var(--accent);margin-bottom:10px">Cuenta inactiva</h2>
-    <p style="color:var(--text2);font-size:0.9rem;line-height:1.6;max-width:300px;margin-bottom:24px">Tu cuenta está desactivada. Contactá a RavenTechs para activarla o renovar tu suscripción.</p>
+    <h2 id="inactivoTitulo" style="color:var(--accent);margin-bottom:10px">Cuenta inactiva</h2>
+    <p id="inactivoTexto" style="color:var(--text2);font-size:0.9rem;line-height:1.6;max-width:300px;margin-bottom:24px">Tu cuenta está desactivada. Contactá a RavenTechs para activarla o renovar tu suscripción.</p>
     <a href="https://wa.me/5491136547592?text=Hola%20RavenTechs%2C%20necesito%20reactivar%20mi%20cuenta%20de%20BarbeAR" target="_blank" style="display:inline-block;background:#25D366;color:#fff;padding:13px 24px;border-radius:14px;font-weight:700;font-size:0.95rem;text-decoration:none;margin-bottom:12px">📲 Contactar por WhatsApp</a>
     <button onclick="auth.signOut()" style="background:none;border:1px solid var(--borde);border-radius:14px;padding:10px 20px;font-size:0.85rem;color:var(--text2);cursor:pointer;">Cerrar sesión</button>
   </div>
@@ -2968,8 +2968,41 @@ function esAdmin(email) {
   return email === ADMIN_EMAIL;
 }
 
-function mostrarInactivo() {
+const RT_DEMO_DIAS = 14;
+function mostrarCartelDemo(dias) {
+  if (document.getElementById('rtDemoCartel')) return;
+  const urgente = dias <= 3;
+  const b = document.createElement('a');
+  b.id = 'rtDemoCartel';
+  b.href = 'https://wa.me/5491136547592?text=' + encodeURIComponent('Hola RavenTechs, quiero activar mi cuenta de BarbeAR');
+  b.target = '_blank';
+  b.textContent = '🎓 Prueba gratis: ' + (dias === 1 ? 'te queda 1 día' : 'te quedan ' + dias + ' días') + ' · Activar mi cuenta';
+  b.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);z-index:9000;padding:5px 14px;border-radius:99px;font:600 12px system-ui,sans-serif;text-decoration:none;white-space:nowrap;color:#fff;background:' + (urgente ? '#dc2626' : '#1d4ed8') + ';box-shadow:0 2px 8px rgba(0,0,0,.25);' + (urgente ? 'animation:rtDemoBlink 1.2s ease-in-out infinite;' : '');
+  const st = document.createElement('style'); st.textContent = '@keyframes rtDemoBlink{50%{opacity:.55}}';
+  document.head.appendChild(st); document.body.appendChild(b);
+}
+// Admin: pasar una cuenta de prueba a cliente real (quita el vencimiento) o darle 7 días más
+async function pasarACliente(email) {
+  if (!confirm('¿Pasar ' + email + ' a cliente real? Se quita el vencimiento de la prueba.')) return;
+  try { await db.collection('clientes').doc(email).update({ demoHasta: null }); toast('Cliente real: sin vencimiento'); cargarMisClientes(); }
+  catch(e) { toast('Error: ' + e.message); }
+}
+async function extenderDemo(email, dias) {
+  try {
+    const snap = await db.collection('clientes').doc(email).get();
+    const d = snap.data() || {};
+    const base = Math.max(Date.now(), (d.demoHasta && d.demoHasta.toMillis) ? d.demoHasta.toMillis() : Date.now());
+    await db.collection('clientes').doc(email).update({ demoHasta: firebase.firestore.Timestamp.fromMillis(base + dias * 86400000), activo: true });
+    toast('Prueba extendida ' + dias + ' días'); cargarMisClientes();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+function mostrarInactivo(motivo) {
   document.getElementById('loading').style.display = 'none';
+  if (motivo === 'demo') {
+    const t = document.getElementById('inactivoTitulo'), x = document.getElementById('inactivoTexto');
+    if (t) t.textContent = 'Terminó tu prueba gratis';
+    if (x) x.textContent = 'Tus 14 días de prueba terminaron. Tus datos están guardados y no se perdió nada. Activá tu cuenta para seguir usando BarbeAR.';
+  }
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
   const sec = document.getElementById('sec-inactivo');
   if (sec) sec.style.display = 'flex';
@@ -3003,6 +3036,7 @@ async function cargarCliente(user) {
         activo: true,
         features: PLANES.basico.features,
         limiteSucursales: 1,
+        demoHasta: firebase.firestore.Timestamp.fromMillis(Date.now() + RT_DEMO_DIAS * 86400000),
         creadoEn: firebase.firestore.FieldValue.serverTimestamp()
       };
       await clienteRef.set(basicoData);
@@ -3018,10 +3052,22 @@ async function cargarCliente(user) {
       clienteRef.set({ uid: user.uid }, { merge: true }).catch(() => {});
     }
 
+    // Prueba gratis de 14 días: demoHasta = fecha de fin; null = cliente real (lo pasa el admin); sin campo = cuenta anterior, la prueba arranca hoy
+    let demoMs = (datos.demoHasta === undefined) ? undefined : (datos.demoHasta === null ? null : (datos.demoHasta.toMillis ? datos.demoHasta.toMillis() : null));
+    if (demoMs === undefined && datos.activo) {
+      const hasta = firebase.firestore.Timestamp.fromMillis(Date.now() + RT_DEMO_DIAS * 86400000);
+      try { await clienteRef.set({ demoHasta: hasta }, { merge: true }); demoMs = hasta.toMillis(); } catch(_) { demoMs = null; }
+    }
+
     // Verificar cuenta activa
     if (!datos.activo) {
       mostrarInactivo();
       return;
+    }
+    if (demoMs) {
+      const dias = Math.ceil((demoMs - Date.now()) / 86400000);
+      if (dias <= 0) { mostrarInactivo('demo'); return; }
+      mostrarCartelDemo(dias);
     }
 
     // Aplicar features del cliente (no del negocio)
@@ -3060,6 +3106,7 @@ async function cargarMisClientes() {
     lista.innerHTML = snap.docs.map(d => {
       const cl = d.data();
       const planNom = PLANES[cl.plan]?.nombre || cl.plan;
+      const _dm = cl.demoHasta === null ? 'Cliente real' : (cl.demoHasta && cl.demoHasta.toMillis ? (Math.ceil((cl.demoHasta.toMillis() - Date.now()) / 86400000) > 0 ? 'Prueba: ' + Math.ceil((cl.demoHasta.toMillis() - Date.now()) / 86400000) + ' días' : 'Prueba vencida') : 'Sin prueba');
       const estadoBadge = cl.activo
         ? '<span style="background:rgba(39,174,96,.12);color:#27ae60;font-size:10px;padding:2px 8px;border-radius:10px">● Activo</span>'
         : '<span style="background:rgba(239,68,68,.12);color:#ef4444;font-size:10px;padding:2px 8px;border-radius:10px">● Inactivo</span>';
@@ -3067,7 +3114,7 @@ async function cargarMisClientes() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
           <div>
             <div style="font-size:14px;font-weight:700;">${cl.nombre||cl.email}</div>
-            <div style="font-size:11px;color:var(--text2);">${cl.email}</div>
+            <div style="font-size:11px;color:var(--text2);">${cl.email} · ${_dm}</div>
           </div>
           ${estadoBadge}
         </div>
@@ -3077,6 +3124,8 @@ async function cargarMisClientes() {
             <option value="pro"    ${cl.plan==='pro'?'selected':''}>Pro — 3 suc</option>
             <option value="full"   ${cl.plan==='full'?'selected':''}>Full — ilimitado</option>
           </select>
+          <button onclick="pasarACliente('${d.id}')" style="font-size:11px;padding:6px 10px;border-radius:10px;background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3)">✅ Pasar a cliente</button>
+          <button onclick="extenderDemo('${d.id}', 7)" style="font-size:11px;padding:6px 10px;border-radius:10px;background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.3)">+7 días</button>
           <button onclick="toggleCliente('${d.id}', ${!cl.activo})" style="font-size:11px;padding:6px 10px;border-radius:14px;${cl.activo?'background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);':'background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3);'} cursor:pointer;">${cl.activo?'🚫 Desactivar':'✅ Activar'}</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 2px;">
