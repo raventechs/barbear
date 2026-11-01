@@ -2770,14 +2770,8 @@ function handleLogoTap() {
   logoTimer = setTimeout(() => logoTaps=0, 2000);
   if(logoTaps >= 5) {
     logoTaps = 0;
-    pinCallback = (pin) => {
-      if((window.rtIsAdmin&&window.rtIsAdmin())) {
-        showFeaturesPanel();
-        return true;
-      }
-      return false;
-    };
-    openPin('PIN RavenTechs');
+    /* Menú oculto: sin PIN. Solo abre si entraste con la cuenta admin (las reglas de Firestore lo respaldan). */
+    if(window.rtIsAdmin&&window.rtIsAdmin()) showFeaturesPanel();
   }
 }
 
