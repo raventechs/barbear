@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.7
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.8
+  v2.8 (8/11/2026): TURNOS: botones «Enviar por WhatsApp», «Ver cómo lo ven» y «Copiar link» para que el cliente reserve solo. El link ahora apunta a ventas.raventechsapp.com/reservar-barbear/ (otro dominio, así el celular no lo abre dentro de la app instalada, que era por qué el link «no llevaba a ningún lado»).
   v2.7 (8/11/2026): TARJETA «TUS PRIMEROS PASOS» en Inicio, solo para el dueño y durante la prueba gratis: 4 pasos (primer turno, primera venta, Ver resumen del día, Historial) que se tildan solos; se puede ocultar. Se guarda en el celular, no toca datos ni reglas.
   Fecha de esta versión: 25/10/2026
   v2.6: BACKUP ESTÁNDAR devuelto (se había perdido al reescribir): automático diario que baja el archivo, botón manual y restaurar
@@ -618,6 +619,15 @@ var __rtPWA = (function() {
   <!-- TURNOS -->
   <div class="section" id="sec-turnos">
     <h2>📅 Turnos</h2>
+    <div style="margin-bottom:14px;padding:12px;background:var(--surface);border:1px solid var(--borde);border-radius:14px;">
+      <div style="font-weight:700;margin-bottom:4px;">🔗 Que tus clientes reserven solos</div>
+      <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px;">Mandales tu link por WhatsApp: eligen barbero, servicio y horario sin escribirte.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-save" style="flex:1;min-width:140px;background:#25D366;color:#fff;" onclick="compartirLinkReservaWA()">📲 Enviar por WhatsApp</button>
+        <button class="btn-save" style="flex:1;min-width:140px;" onclick="verPaginaReservas()">👀 Ver cómo lo ven</button>
+        <button class="btn-save" style="flex:1;min-width:140px;" onclick="copiarLinkReserva()">📋 Copiar link</button>
+      </div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
       <input type="date" id="turnosFecha" style="padding:8px;border-radius:12px;border:1px solid var(--borde);background:var(--surface);color:var(--text);" onchange="renderTurnos()">
       <button class="btn-save" style="flex:1;min-width:140px;" onclick="abrirNuevoTurno()">+ Nuevo turno</button>
@@ -1925,13 +1935,31 @@ async function cancelarTurno(turnoId) {
   } catch(e) { toast('Error: '+e.message); }
 }
 
-function copiarLinkReserva() {
+/* La página de reservas vive en otro dominio a propósito: si el link fuera del mismo dominio que la app,
+   el celular lo abriría dentro de la app instalada (y el cliente vería la app en vez de la reserva). */
+function linkReserva() {
   const uid = getUserDoc();
-  if (!uid) return toast('Iniciá sesión primero');
-  const link = `${location.origin}/reservar.html?neg=${uid}`;
+  if (!uid) return null;
+  return 'https://ventas.raventechsapp.com/reservar-barbear/?neg=' + encodeURIComponent(uid);
+}
+function copiarLinkReserva() {
+  const link = linkReserva();
+  if (!link) return toast('Iniciá sesión primero');
   navigator.clipboard.writeText(link)
     .then(() => toast('✅ Link copiado — pegalo en WhatsApp o Instagram'))
     .catch(() => toast('No se pudo copiar. Link: ' + link));
+}
+function compartirLinkReservaWA() {
+  const link = linkReserva();
+  if (!link) return toast('Iniciá sesión primero');
+  const nombre = (document.getElementById('cfgNombreNegocio') && document.getElementById('cfgNombreNegocio').value) || '';
+  const msg = '💈 ' + (nombre ? nombre + ': ' : '') + 'reservá tu turno online, elegís barbero y horario acá:\n' + link;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+function verPaginaReservas() {
+  const link = linkReserva();
+  if (!link) return toast('Iniciá sesión primero');
+  window.open(link, '_blank');
 }
 
 // ══════════ BARBEROS (config) ══════════
