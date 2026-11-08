@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.8
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.9
+  v2.9 (8/11/2026): menú admin: se saca el «Escáner de tickets» (es de carnicería, no de barbería). Solo oculta los botones; no toca datos ni lo que ya tiene cada cliente.
   v2.8 (8/11/2026): TURNOS: botones «Enviar por WhatsApp», «Ver cómo lo ven» y «Copiar link» para que el cliente reserve solo. El link ahora apunta a ventas.raventechsapp.com/reservar-barbear/ (otro dominio, así el celular no lo abre dentro de la app instalada, que era por qué el link «no llevaba a ningún lado»).
   v2.7 (8/11/2026): TARJETA «TUS PRIMEROS PASOS» en Inicio, solo para el dueño y durante la prueba gratis: 4 pasos (primer turno, primera venta, Ver resumen del día, Historial) que se tildan solos; se puede ocultar. Se guarda en el celular, no toca datos ni reglas.
   Fecha de esta versión: 25/10/2026
@@ -3196,7 +3197,7 @@ async function cargarMisClientes() {
           <button onclick="toggleCliente('${d.id}', ${!cl.activo})" style="font-size:11px;padding:6px 10px;border-radius:14px;${cl.activo?'background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);':'background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3);'} cursor:pointer;">${cl.activo?'🚫 Desactivar':'✅ Activar'}</button>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 2px;">
-          ${[['gastos','💸 Gastos'],['ticket','📸 Ticket IA'],['proveedores','🏭 Proveedores']].map(([k,lbl])=>`
+          ${[['gastos','💸 Gastos'],['proveedores','🏭 Proveedores']].map(([k,lbl])=>`
             <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;background:rgba(0,0,0,.04);padding:4px 8px;border-radius:14px;">
               <input type="checkbox" ${cl.features&&cl.features[k]?'checked':''} onchange="toggleFeatureCliente('${d.id}',this,'${k}',this.checked)" style="cursor:pointer;width:auto;">
               ${lbl}
@@ -3345,7 +3346,6 @@ function showFeaturesPanel() {
     <div class="features-panel" style="margin-top:12px">
       ${makeToggle('gastos','💸','Gastos')}
       ${makeToggle('proveedores','🏭','Proveedores')}
-      ${makeToggle('ticket','📸','Escáner de tickets')}
       ${currentUser?.email === ADMIN_EMAIL ? `
       <div style="margin-top:14px;border-top:1px solid var(--borde);padding-top:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">👥 Mis clientes</div>
