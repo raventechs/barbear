@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v3.1
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v3.2
   v3.1 (8/11/2026): Turnos con vista «Agenda por barbero» (grilla por hora, 🌐 web / ✍️ local, navegar días); página de reservas: corrige el paso de servicios (no avanzaba) y oculta productos a la venta.
   v3.0 (8/11/2026): ADICIONALES por cliente en el menú admin (solo botones): «Sucursales» (1 / hasta 3 / todas) y «Barberos» (1 / hasta 3 / todos). Cuenta nueva = 1 barbero; los clientes que ya existen quedan sin límite de barberos (sin campo = sin límite). Al llegar al tope, la app ofrece pedir el adicional por WhatsApp. El cambio de plan ya no pisa las sucursales. Se arregla que el listener del negocio reiniciaba el límite de sucursales a 1.
   v2.9 (8/11/2026): menú admin: se saca el «Escáner de tickets» (es de carnicería, no de barbería). Solo oculta los botones; no toca datos ni lo que ya tiene cada cliente.
@@ -564,6 +564,7 @@ var __rtPWA = (function() {
     <div class="caja-mode-bar" id="cajaModeBar">
       <button class="caja-mode-btn active" onclick="setCajaMode('catalogo')">✂️ Catálogo</button>
       <button class="caja-mode-btn" onclick="setCajaMode('importe')">💰 Importe</button>
+      <button class="caja-mode-btn" onclick="irATurnoCalendario()">📅 Turno</button>
       <button class="caja-mode-btn" id="modeTicketBtn" onclick="setCajaMode('ticket')" style="display:none">📸 Ticket</button>
     </div>
     <div class="caja-mode-content active" id="modeCatalogo">
@@ -639,6 +640,7 @@ var __rtPWA = (function() {
       <button class="btn-save" id="vtLista" style="flex:1;" onclick="setVistaTurnos('lista')">📋 Lista</button>
       <button class="btn-save" id="vtAgenda" style="flex:1;opacity:.55;" onclick="setVistaTurnos('agenda')">📆 Agenda por barbero</button>
     </div>
+    <div id="agendaCal" style="display:none;margin-bottom:12px;"></div>
     <div id="agendaNav" style="display:none;align-items:center;gap:8px;margin-bottom:10px;">
       <button class="btn-save" style="padding:8px 14px;" onclick="agendaDia(-1)">‹</button>
       <div id="agendaTitulo" style="flex:1;text-align:center;font-weight:700;"></div>
@@ -1795,9 +1797,40 @@ function setVistaTurnos(v) {
   document.getElementById('vtLista').style.opacity = a ? '.55' : '1';
   document.getElementById('vtAgenda').style.opacity = a ? '1' : '.55';
   document.getElementById('agendaNav').style.display = a ? 'flex' : 'none';
+  document.getElementById('agendaCal').style.display = a ? 'block' : 'none';
   document.getElementById('agendaGrid').style.display = a ? 'block' : 'none';
   document.getElementById('turnosList').style.display = a ? 'none' : 'block';
   renderTurnos();
+}
+function irATurnoCalendario() { switchTab('turnos'); setVistaTurnos('agenda'); }
+let calMes = null;
+function calMover(n) { const d = new Date(calMes + '-01T12:00:00'); d.setMonth(d.getMonth() + n); calMes = d.toISOString().slice(0,7); pintarCalendario(); }
+function calElegir(f) { document.getElementById('turnosFecha').value = f; renderTurnos(); }
+async function pintarCalendario() {
+  const box = document.getElementById('agendaCal'); if (!box) return;
+  const sel = document.getElementById('turnosFecha').value || new Date().toISOString().slice(0,10);
+  if (!calMes) calMes = sel.slice(0,7);
+  const [Y, M] = calMes.split('-').map(Number);
+  const ini = calMes + '-01', dim = new Date(Y, M, 0).getDate(), fin = calMes + '-' + String(dim).padStart(2,'0');
+  const cuenta = {};
+  try {
+    const ref = col('turnos');
+    if (ref) { const sn = await ref.where('fecha','>=',ini).where('fecha','<=',fin).get();
+      sn.docs.forEach(d => { const t = d.data(); if (t.estado !== 'cancelado') cuenta[t.fecha] = (cuenta[t.fecha] || 0) + 1; }); }
+  } catch (e) {}
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const hoy = new Date().toISOString().slice(0,10);
+  const off = (new Date(Y, M - 1, 1).getDay() + 6) % 7; // lunes primero
+  let h = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><button class="btn-save" style="padding:6px 14px;" onclick="calMover(-1)">‹</button><div style="flex:1;text-align:center;font-weight:800;">' + meses[M-1] + ' ' + Y + '</div><button class="btn-save" style="padding:6px 14px;" onclick="calMover(1)">›</button></div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:11px;color:var(--text2);margin-bottom:4px;">' + ['L','M','M','J','V','S','D'].map(x => '<div>' + x + '</div>').join('') + '</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">';
+  for (let i = 0; i < off; i++) h += '<div></div>';
+  for (let d = 1; d <= dim; d++) {
+    const f = calMes + '-' + String(d).padStart(2,'0'), n = cuenta[f] || 0, es = f === sel;
+    h += '<button onclick="calElegir(\'' + f + '\')" style="padding:8px 0;border-radius:10px;cursor:pointer;font-weight:700;border:' + (f === hoy ? '2px solid var(--accent2)' : '1px solid var(--borde)') + ';background:' + (es ? 'var(--accent2)' : 'var(--surface)') + ';color:' + (es ? '#000' : 'var(--text)') + ';">' + d +
+      (n ? '<div style="font-size:10px;font-weight:800;">' + n + ' 📌</div>' : '<div style="font-size:10px;opacity:.3;">·</div>') + '</button>';
+  }
+  box.innerHTML = h + '</div>';
 }
 function agendaDia(n) {
   const i = document.getElementById('turnosFecha');
@@ -1852,7 +1885,7 @@ async function renderTurnos() {
     turnosDelDia = snap.docs.map(d => ({id:d.id, ...d.data()}))
       .sort((a,b) => a.hora.localeCompare(b.hora));
 
-    if (vistaTurnos === 'agenda') { list.innerHTML = ''; await pintarAgenda(fecha); return; }
+    if (vistaTurnos === 'agenda') { list.innerHTML = ''; calMes = fecha.slice(0,7); await pintarAgenda(fecha); pintarCalendario(); return; }
     if (!turnosDelDia.length) {
       list.innerHTML = '<div class="empty-state"><p>No hay turnos para este día</p></div>';
       return;

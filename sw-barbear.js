@@ -1,5 +1,5 @@
 // sw-barbear.js — Service Worker BarbeAR v1.1
-const CACHE_NAME = 'barbear-v1.7';
+const CACHE_NAME = 'barbear-v1.8';
 const SHELL = [
   '/',
   '/index.html',
