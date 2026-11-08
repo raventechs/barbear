@@ -1818,14 +1818,14 @@ async function pintarAgenda(fecha) {
   const vivos = turnosDelDia.filter(t => t.estado !== 'cancelado');
   const horas = Array.from(new Set(generarHorarios(cfg).concat(vivos.map(t => t.hora)))).sort();
   const cerrado = !(cfg.diasAtencion || []).includes(d.getDay());
-  let h = '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">🌐 reservó por la web · ✍️ cargado por el local · ⬜ libre' + (cerrado ? ' · <b>Día cerrado</b>' : '') + '</div>';
+  let h = '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">🌐 reservó por la web · ✍️ cargado por el local · tocá un «＋ libre» para cargar un turno' + (cerrado ? ' · <b>Día cerrado</b>' : '') + '</div>';
   h += '<table style="border-collapse:collapse;width:100%;font-size:12px;"><thead><tr><th style="text-align:left;padding:6px;">Hora</th>' +
     lista.map(b => '<th style="padding:6px;text-align:left;">💈 ' + b.nombre + '</th>').join('') + '</tr></thead><tbody>';
   horas.forEach(hr => {
     h += '<tr style="border-top:1px solid var(--borde);"><td style="padding:6px;font-weight:700;white-space:nowrap;">' + hr + '</td>';
     lista.forEach(b => {
       const t = vivos.find(x => x.hora === hr && x.barberoId === b.id);
-      if (!t) { h += '<td style="padding:6px;color:var(--text2);">⬜</td>'; return; }
+      if (!t) { h += '<td style="padding:4px;"><button onclick="abrirNuevoTurno(\'' + b.id + '\',\'' + hr + '\')" style="width:100%;min-width:96px;background:transparent;border:1px dashed var(--borde);border-radius:10px;padding:8px;color:var(--text2);cursor:pointer;">＋ libre</button></td>'; return; }
       const web = t.origen === 'cliente';
       const bg = t.estado === 'completado' ? '#27ae6033' : (web ? 'var(--accent2)33' : '#3498db33');
       h += '<td style="padding:4px;"><div style="background:' + bg + ';border-radius:10px;padding:5px 7px;min-width:96px;">' +
@@ -1883,7 +1883,7 @@ async function renderTurnos() {
   }
 }
 
-async function abrirNuevoTurno() {
+async function abrirNuevoTurno(preBarbero, preHora) {
   await cargarBarberos();
   const selB = document.getElementById('turnoBarbero');
   selB.innerHTML = barberos.length
@@ -1901,6 +1901,8 @@ async function abrirNuevoTurno() {
   const selH = document.getElementById('turnoHora');
   selH.innerHTML = horarios.map(h => `<option value="${h}">${h}</option>`).join('');
 
+  if (preBarbero) selB.value = preBarbero;
+  if (preHora) { if (![...selH.options].some(o => o.value === preHora)) selH.insertAdjacentHTML('beforeend', `<option value="${preHora}">${preHora}</option>`); selH.value = preHora; }
   document.getElementById('turnoCliente').value = '';
   document.getElementById('turnoTelefono').value = '';
   document.getElementById('turnoModalTitulo').textContent = 'Nuevo turno';
