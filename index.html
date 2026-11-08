@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.9
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v3.0
+  v3.0 (8/11/2026): ADICIONALES por cliente en el menú admin (solo botones): «Sucursales» (1 / hasta 3 / todas) y «Barberos» (1 / hasta 3 / todos). Cuenta nueva = 1 barbero; los clientes que ya existen quedan sin límite de barberos (sin campo = sin límite). Al llegar al tope, la app ofrece pedir el adicional por WhatsApp. El cambio de plan ya no pisa las sucursales. Se arregla que el listener del negocio reiniciaba el límite de sucursales a 1.
   v2.9 (8/11/2026): menú admin: se saca el «Escáner de tickets» (es de carnicería, no de barbería). Solo oculta los botones; no toca datos ni lo que ya tiene cada cliente.
   v2.8 (8/11/2026): TURNOS: botones «Enviar por WhatsApp», «Ver cómo lo ven» y «Copiar link» para que el cliente reserve solo. El link ahora apunta a ventas.raventechsapp.com/reservar-barbear/ (otro dominio, así el celular no lo abre dentro de la app instalada, que era por qué el link «no llevaba a ningún lado»).
   v2.7 (8/11/2026): TARJETA «TUS PRIMEROS PASOS» en Inicio, solo para el dueño y durante la prueba gratis: 4 pasos (primer turno, primera venta, Ver resumen del día, Historial) que se tildan solos; se puede ocultar. Se guarda en el celular, no toca datos ni reglas.
@@ -1005,6 +1006,7 @@ let ownerUid = null;        // UID del dueño (para cajero por link)
 let currentSucursal = null; // {id, nombre} — null = modo principal
 let sucursales = [];
 let limiteSucursales = parseInt(localStorage.getItem('barbear_ls')) || 1;
+let limiteBarberos = Infinity;   // adicional «Varios barberos»: sin campo = sin límite (clientes existentes no cambian)
 const _dashUnsubs = [];
 let enSucursal = false; // true cuando el dueño está dentro de una sucursal
 let productos = [];
@@ -1488,6 +1490,13 @@ function subscribeData() {
     unsubClienteFeatures = db.collection('clientes').doc(currentUser.email).onSnapshot(doc => {
       if (!doc.exists) return;
       const datos = doc.data();
+      limiteBarberos = datos.limiteBarberos > 0 ? datos.limiteBarberos : Infinity;
+      if (datos.limiteSucursales > 0 && datos.limiteSucursales !== limiteSucursales) {
+        const subio = datos.limiteSucursales > limiteSucursales;
+        limiteSucursales = datos.limiteSucursales;
+        localStorage.setItem('barbear_ls', limiteSucursales);
+        if (subio && limiteSucursales > 1) setTimeout(() => { try { verificarMultiSucursal(); } catch (_) {} }, 0);
+      }
       if (datos.features) {
         const old = JSON.stringify(features);
         features = Object.assign({}, features, datos.features);
@@ -1512,7 +1521,7 @@ function subscribeData() {
       }
     }
     const prevLimite = limiteSucursales;
-    limiteSucursales = datos.limiteSucursales || 1;
+    limiteSucursales = datos.limiteSucursales || limiteSucursales;
     localStorage.setItem('barbear_ls', limiteSucursales);
     if (limiteSucursales !== prevLimite && limiteSucursales > 1) {
       db.collection('negocios').doc(uid).collection('sucursales').get()
@@ -1995,6 +2004,16 @@ async function cargarBarberosTodos() {
 async function agregarBarbero() {
   const uid = getUserDoc();
   if (!uid) return;
+  if (limiteBarberos !== Infinity && !esAdmin(currentUser && currentUser.email)) {
+    await cargarBarberosTodos();
+    const activos = barberosTodos.filter(b => b.activo !== false).length;
+    if (activos >= limiteBarberos) {
+      if (confirm('Tu plan incluye ' + limiteBarberos + (limiteBarberos === 1 ? ' barbero' : ' barberos') + '. Para sumar más barberos activá el adicional «Varios barberos».\n\n¿Querés pedirlo por WhatsApp?')) {
+        window.open('https://wa.me/5491136547592?text=' + encodeURIComponent('Hola RavenTechs, quiero activar «Varios barberos» en mi cuenta de BarbeAR'), '_blank');
+      }
+      return;
+    }
+  }
   const nombre = prompt('Nombre del barbero:');
   if (!nombre || !nombre.trim()) return;
   try {
@@ -3103,6 +3122,7 @@ async function cargarCliente(user) {
         activo: true,
         features: PLANES.basico.features,
         limiteSucursales: 1,
+        limiteBarberos: 1,
         demoHasta: firebase.firestore.Timestamp.fromMillis(Date.now() + RT_DEMO_DIAS * 86400000),
         creadoEn: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -3140,6 +3160,7 @@ async function cargarCliente(user) {
     // Aplicar features del cliente (no del negocio)
     features = Object.assign(features, datos.features || {});
     limiteSucursales = datos.limiteSucursales || 1;
+    limiteBarberos = datos.limiteBarberos > 0 ? datos.limiteBarberos : Infinity;
     localStorage.setItem('barbear_ls', limiteSucursales);
 
     currentUser = user;
@@ -3187,9 +3208,9 @@ async function cargarMisClientes() {
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
           <select onchange="cambiarPlan('${d.id}',this.value)" style="flex:1;font-size:12px;padding:6px;">
-            <option value="basico" ${cl.plan==='basico'?'selected':''}>Básico — 1 suc</option>
-            <option value="pro"    ${cl.plan==='pro'?'selected':''}>Pro — 3 suc</option>
-            <option value="full"   ${cl.plan==='full'?'selected':''}>Full — ilimitado</option>
+            <option value="basico" ${cl.plan==='basico'?'selected':''}>Básico</option>
+            <option value="pro"    ${cl.plan==='pro'?'selected':''}>Pro</option>
+            <option value="full"   ${cl.plan==='full'?'selected':''}>Full</option>
           </select>
           <button onclick="pasarACliente('${d.id}')" style="font-size:11px;padding:6px 10px;border-radius:10px;background:rgba(39,174,96,.1);color:#27ae60;border:1px solid rgba(39,174,96,.3)">✅ Pasar a cliente</button>
           <button onclick="extenderDemo('${d.id}', 7)" style="font-size:11px;padding:6px 10px;border-radius:10px;background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.3)">+7 días</button>
@@ -3204,6 +3225,15 @@ async function cargarMisClientes() {
             </label>
           `).join('')}
         </div>
+        <div style="padding:6px 2px 0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">➕ ADICIONALES</div>
+          ${[['limiteSucursales','🏪 Sucursales',[[1,'1'],[3,'Hasta 3'],[99,'Todas']], cl.limiteSucursales||1],
+             ['limiteBarberos','✂️ Barberos',[[1,'1'],[3,'Hasta 3'],[99,'Todos']], cl.limiteBarberos||99]].map(([campo,lbl,ops,actual])=>`
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+              <span style="font-size:12px;min-width:92px;">${lbl}</span>
+              ${ops.map(([v,t])=>`<button onclick="setLimiteCliente('${d.id}','${campo}',${v})" style="font-size:11px;padding:6px 10px;border-radius:12px;cursor:pointer;border:1.5px solid ${actual===v?'#C9A227':'var(--borde)'};background:${actual===v?'rgba(201,162,39,.18)':'transparent'};color:var(--text);font-weight:${actual===v?'700':'500'};">${t}</button>`).join('')}
+            </div>`).join('')}
+        </div>
       </div>`;
     }).join('');
   } catch(e) { logError('cargarMisClientes', e.message); }
@@ -3215,10 +3245,18 @@ async function cambiarPlan(email, nuevoPlan) {
   try {
     await db.collection('clientes').doc(email).update({
       plan: nuevoPlan,
-      features: plan.features,
-      limiteSucursales: plan.limiteSucursales
+      features: plan.features
     });
     toast('Plan actualizado: ' + plan.nombre);
+    cargarMisClientes();
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+async function setLimiteCliente(email, campo, valor) {
+  if (campo !== 'limiteSucursales' && campo !== 'limiteBarberos') return;
+  try {
+    await db.collection('clientes').doc(email).update({ [campo]: valor });
+    toast((campo === 'limiteSucursales' ? 'Sucursales: ' : 'Barberos: ') + (valor >= 99 ? 'sin límite' : valor));
     cargarMisClientes();
   } catch(e) { toast('Error: ' + e.message); }
 }
