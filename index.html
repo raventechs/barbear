@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v3.0
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v3.1
+  v3.1 (8/11/2026): Turnos con vista «Agenda por barbero» (grilla por hora, 🌐 web / ✍️ local, navegar días); página de reservas: corrige el paso de servicios (no avanzaba) y oculta productos a la venta.
   v3.0 (8/11/2026): ADICIONALES por cliente en el menú admin (solo botones): «Sucursales» (1 / hasta 3 / todas) y «Barberos» (1 / hasta 3 / todos). Cuenta nueva = 1 barbero; los clientes que ya existen quedan sin límite de barberos (sin campo = sin límite). Al llegar al tope, la app ofrece pedir el adicional por WhatsApp. El cambio de plan ya no pisa las sucursales. Se arregla que el listener del negocio reiniciaba el límite de sucursales a 1.
   v2.9 (8/11/2026): menú admin: se saca el «Escáner de tickets» (es de carnicería, no de barbería). Solo oculta los botones; no toca datos ni lo que ya tiene cada cliente.
   v2.8 (8/11/2026): TURNOS: botones «Enviar por WhatsApp», «Ver cómo lo ven» y «Copiar link» para que el cliente reserve solo. El link ahora apunta a ventas.raventechsapp.com/reservar-barbear/ (otro dominio, así el celular no lo abre dentro de la app instalada, que era por qué el link «no llevaba a ningún lado»).
@@ -634,6 +635,16 @@ var __rtPWA = (function() {
       <input type="date" id="turnosFecha" style="padding:8px;border-radius:12px;border:1px solid var(--borde);background:var(--surface);color:var(--text);" onchange="renderTurnos()">
       <button class="btn-save" style="flex:1;min-width:140px;" onclick="abrirNuevoTurno()">+ Nuevo turno</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn-save" id="vtLista" style="flex:1;" onclick="setVistaTurnos('lista')">📋 Lista</button>
+      <button class="btn-save" id="vtAgenda" style="flex:1;opacity:.55;" onclick="setVistaTurnos('agenda')">📆 Agenda por barbero</button>
+    </div>
+    <div id="agendaNav" style="display:none;align-items:center;gap:8px;margin-bottom:10px;">
+      <button class="btn-save" style="padding:8px 14px;" onclick="agendaDia(-1)">‹</button>
+      <div id="agendaTitulo" style="flex:1;text-align:center;font-weight:700;"></div>
+      <button class="btn-save" style="padding:8px 14px;" onclick="agendaDia(1)">›</button>
+    </div>
+    <div id="agendaGrid" style="display:none;overflow-x:auto;"></div>
     <div id="turnosList"></div>
   </div>
 
@@ -1777,6 +1788,55 @@ function generarHorarios(cfg) {
   return slots;
 }
 
+let vistaTurnos = 'lista';
+function setVistaTurnos(v) {
+  vistaTurnos = v;
+  const a = v === 'agenda';
+  document.getElementById('vtLista').style.opacity = a ? '.55' : '1';
+  document.getElementById('vtAgenda').style.opacity = a ? '1' : '.55';
+  document.getElementById('agendaNav').style.display = a ? 'flex' : 'none';
+  document.getElementById('agendaGrid').style.display = a ? 'block' : 'none';
+  document.getElementById('turnosList').style.display = a ? 'none' : 'block';
+  renderTurnos();
+}
+function agendaDia(n) {
+  const i = document.getElementById('turnosFecha');
+  const d = new Date((i.value || new Date().toISOString().slice(0,10)) + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  i.value = d.toISOString().slice(0,10);
+  renderTurnos();
+}
+async function pintarAgenda(fecha) {
+  const g = document.getElementById('agendaGrid');
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const d = new Date(fecha + 'T12:00:00');
+  document.getElementById('agendaTitulo').textContent = dias[d.getDay()] + ' ' + fecha.split('-').reverse().join('/');
+  const bs = await cargarBarberos();
+  const lista = (bs && bs.length) ? bs : barberos;
+  if (!lista.length) { g.innerHTML = '<div class="empty-state"><p>Sumá barberos en Config para ver la agenda</p></div>'; return; }
+  const cfg = await getConfigTurnos();
+  const vivos = turnosDelDia.filter(t => t.estado !== 'cancelado');
+  const horas = Array.from(new Set(generarHorarios(cfg).concat(vivos.map(t => t.hora)))).sort();
+  const cerrado = !(cfg.diasAtencion || []).includes(d.getDay());
+  let h = '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">🌐 reservó por la web · ✍️ cargado por el local · ⬜ libre' + (cerrado ? ' · <b>Día cerrado</b>' : '') + '</div>';
+  h += '<table style="border-collapse:collapse;width:100%;font-size:12px;"><thead><tr><th style="text-align:left;padding:6px;">Hora</th>' +
+    lista.map(b => '<th style="padding:6px;text-align:left;">💈 ' + b.nombre + '</th>').join('') + '</tr></thead><tbody>';
+  horas.forEach(hr => {
+    h += '<tr style="border-top:1px solid var(--borde);"><td style="padding:6px;font-weight:700;white-space:nowrap;">' + hr + '</td>';
+    lista.forEach(b => {
+      const t = vivos.find(x => x.hora === hr && x.barberoId === b.id);
+      if (!t) { h += '<td style="padding:6px;color:var(--text2);">⬜</td>'; return; }
+      const web = t.origen === 'cliente';
+      const bg = t.estado === 'completado' ? '#27ae6033' : (web ? 'var(--accent2)33' : '#3498db33');
+      h += '<td style="padding:4px;"><div style="background:' + bg + ';border-radius:10px;padding:5px 7px;min-width:96px;">' +
+        (web ? '🌐 ' : '✍️ ') + '<b>' + t.clienteNombre + '</b><br><span style="color:var(--text2);">' + t.servicioNombre +
+        (t.estado === 'completado' ? ' ✅' : '') + '</span></div></td>';
+    });
+    h += '</tr>';
+  });
+  g.innerHTML = h + '</tbody></table>';
+}
+
 async function renderTurnos() {
   const fechaInput = document.getElementById('turnosFecha');
   if (!fechaInput.value) fechaInput.value = new Date().toISOString().slice(0,10);
@@ -1792,6 +1852,7 @@ async function renderTurnos() {
     turnosDelDia = snap.docs.map(d => ({id:d.id, ...d.data()}))
       .sort((a,b) => a.hora.localeCompare(b.hora));
 
+    if (vistaTurnos === 'agenda') { list.innerHTML = ''; await pintarAgenda(fecha); return; }
     if (!turnosDelDia.length) {
       list.innerHTML = '<div class="empty-state"><p>No hay turnos para este día</p></div>';
       return;
