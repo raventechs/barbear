@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--
   ════════════════════════════════════════════════════════════
-  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.6
+  BARBEAR — CAJA REGISTRADORA PARA BARBERÍAS — v2.7
+  v2.7 (8/11/2026): TARJETA «TUS PRIMEROS PASOS» en Inicio, solo para el dueño y durante la prueba gratis: 4 pasos (primer turno, primera venta, Ver resumen del día, Historial) que se tildan solos; se puede ocultar. Se guarda en el celular, no toca datos ni reglas.
   Fecha de esta versión: 25/10/2026
   v2.6: BACKUP ESTÁNDAR devuelto (se había perdido al reescribir): automático diario que baja el archivo, botón manual y restaurar
   en Configuración. Incluye sucursales, gastos, proveedores y vuelve las fechas a su tipo al restaurar.
@@ -308,6 +309,16 @@
     .barber-pole .cap-top { top:-4px; }
     .barber-pole .cap-bottom { bottom:-4px; }
     @keyframes barberSpin { from { background-position: 0 0; } to { background-position: 0 56px; } }
+  /* Tus primeros pasos (solo durante la prueba gratis) */
+  .rt-chk{background:var(--surface);border:2px solid #2563eb;border-radius:16px;padding:12px 14px;margin:0 0 12px;box-shadow:0 4px 16px rgba(37,99,235,.30)}
+  .rt-chk .tt{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:0.95rem;margin-bottom:6px;color:var(--text)}
+  .rt-chk .tt button{background:none;border:none;color:var(--text2);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}
+  .rt-chk .barra{height:6px;border-radius:99px;background:rgba(128,128,128,.25);margin:2px 0 8px;overflow:hidden}
+  .rt-chk .barra i{display:block;height:100%;background:#27ae60;border-radius:99px;transition:width .3s}
+  .rt-chk .paso{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--borde);padding:10px 2px;font-size:0.9rem;color:var(--text);cursor:pointer;font-family:inherit}
+  .rt-chk .paso .ck{flex-shrink:0;width:24px;height:24px;border-radius:50%;border:2px solid #9aa4b2;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+  .rt-chk .paso.ok{opacity:.65;text-decoration:line-through;cursor:default}
+  .rt-chk .paso.ok .ck{background:#27ae60;border-color:#27ae60}
 </style>
 <script>
 // RavenTechs PWA Banner v1.1 — en el HEAD para capturar beforeinstallprompt temprano
@@ -526,6 +537,7 @@ var __rtPWA = (function() {
 
   <!-- DASHBOARD (inicio dueño) -->
   <div class="section" id="sec-inicio">
+    <div id="rtChecklist"></div>
     <div class="barber-pole-wrap"><div class="barber-pole"><div class="cap-top"></div><div class="cap-bottom"></div></div></div>
     <h2>📊 Panel del dueño</h2>
     <div id="dashCards" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
@@ -1397,7 +1409,8 @@ function switchTab(id) {
   document.querySelectorAll(`[data-tab="${id}"]`).forEach(b => b.classList.add('active'));
   if(id==='caja') { renderPOS(); actualizarBotonesModoCaja(); setCajaMode('catalogo'); }
   if(id==='turnos') renderTurnos();
-  if(id==='historial') loadHistorial('hoy');
+  if(id==='historial') { loadHistorial('hoy'); rtChkMarcar('hist'); }
+  if(id==='inicio') rtChkPintar();
   if(id==='inicio') {
     if (enSucursal || userRole === 'cajero') loadDashboard();
     else if (limiteSucursales > 1 && sucursales.length > 1) mostrarDashboard();
@@ -1694,7 +1707,7 @@ async function confirmarVenta() {
     carrito = [];
     renderCart();
     document.getElementById('modalCobrar').classList.remove('show');
-    toast('✅ Venta registrada');
+    toast('✅ Venta registrada'); rtChkMarcar('venta');
   } catch(e) { toast('Error: '+e.message); }
 }
 
@@ -1866,7 +1879,7 @@ async function guardarTurnoManual() {
     });
     marcarOcupado(fecha, selB.value, hora, true);
     cerrarModalTurno();
-    toast('✅ Turno agregado');
+    toast('✅ Turno agregado'); rtChkMarcar('turno');
     renderTurnos();
   } catch(e) { toast('Error: '+e.message); }
 }
@@ -1894,7 +1907,7 @@ async function completarTurno(turnoId) {
       uid: getUserDoc()
     });
 
-    toast('✅ Turno completado y venta registrada');
+    toast('✅ Turno completado y venta registrada'); rtChkMarcar('venta');
     renderTurnos();
   } catch(e) { toast('Error: '+e.message); }
 }
@@ -2964,7 +2977,37 @@ function esAdmin(email) {
 }
 
 const RT_DEMO_DIAS = 14;
+/* ── Tus primeros pasos: 4 pasos que se tildan solos, solo durante la prueba gratis y solo para el dueño. Se guarda en este celular; no toca datos. ── */
+var rtEnPrueba = false;
+function rtChkClave() { return 'rt_chk_' + ((currentUser && currentUser.uid) || 'x'); }
+function rtChkLeer() { try { return JSON.parse(localStorage.getItem(rtChkClave()) || '{}') || {}; } catch (_) { return {}; } }
+function rtChkGuardar(o) { try { localStorage.setItem(rtChkClave(), JSON.stringify(o)); } catch (_) {} }
+function rtChkVisible() {
+  if (!currentUser || userRole !== 'dueno') return false;
+  if (rtChkLeer().fin) return false;
+  return rtEnPrueba || !!(window.rtIsAdmin && window.rtIsAdmin());
+}
+var RT_PASOS = [
+  { k: 'turno',  t: 'Agendá tu primer turno en «Turnos»',        ir: function () { switchTab('turnos'); } },
+  { k: 'venta',  t: 'Cobrá tu primera venta en «Caja»',          ir: function () { switchTab('caja'); } },
+  { k: 'cierre', t: 'Probá «Ver resumen» del día en «Caja»',     ir: function () { switchTab('caja'); } },
+  { k: 'hist',   t: 'Mirá tus ventas en «Historial»',            ir: function () { switchTab('historial'); } }
+];
+function rtChkMarcar(k) { try { if (!rtChkVisible()) return; var o = rtChkLeer(); if (o[k]) return; o[k] = 1; rtChkGuardar(o); rtChkPintar(); } catch (_) {} }
+function rtChkPintar() {
+  var box = document.getElementById('rtChecklist'); if (!box) return;
+  try {
+    if (!rtChkVisible()) { box.innerHTML = ''; return; }
+    var o = rtChkLeer(), hechos = RT_PASOS.filter(function (p) { return o[p.k]; }).length;
+    if (hechos === RT_PASOS.length) { o.fin = 1; rtChkGuardar(o); box.innerHTML = ''; toast('🎉 ¡Listo! Ya sabés lo básico de BarbeAR'); return; }
+    box.innerHTML = '<div class="rt-chk"><div class="tt"><span>🚀 Tus primeros pasos (' + hechos + ' de ' + RT_PASOS.length + ')</span><button type="button" onclick="rtChkOcultar()">Ocultar</button></div><div class="barra"><i style="width:' + Math.round(hechos * 100 / RT_PASOS.length) + '%"></i></div>'
+      + RT_PASOS.map(function (p, i) { return '<button type="button" class="paso' + (o[p.k] ? ' ok' : '') + '" onclick="rtChkIr(' + i + ')"><span class="ck">' + (o[p.k] ? '✓' : '') + '</span><span>' + p.t + '</span></button>'; }).join('') + '</div>';
+  } catch (_) { box.innerHTML = ''; }
+}
+function rtChkIr(i) { var p = RT_PASOS[i]; if (p && !rtChkLeer()[p.k]) p.ir(); }
+function rtChkOcultar() { var o = rtChkLeer(); o.fin = 1; rtChkGuardar(o); var b = document.getElementById('rtChecklist'); if (b) b.innerHTML = ''; }
 function mostrarCartelDemo(dias) {
+  rtEnPrueba = true; rtChkPintar();
   if (document.getElementById('rtDemoCartel')) return;
   const urgente = dias <= 3;
   const b = document.createElement('a');
@@ -3206,13 +3249,13 @@ function generarResumenCierre(ventas) {
 async function verResumenCierre() {
   const ventas = await obtenerVentasHoy();
   if (!ventas.length) { toast('No hay ventas hoy'); return; }
-  alert(generarResumenCierre(ventas).replace(/\*/g,''));
+  alert(generarResumenCierre(ventas).replace(/\*/g,'')); rtChkMarcar('cierre');
 }
 
 async function enviarResumenWA() {
   const ventas = await obtenerVentasHoy();
   if (!ventas.length) { toast('No hay ventas hoy'); return; }
-  window.open('https://wa.me/?text=' + encodeURIComponent(generarResumenCierre(ventas)), '_blank');
+  window.open('https://wa.me/?text=' + encodeURIComponent(generarResumenCierre(ventas)), '_blank'); rtChkMarcar('cierre');
 }
 
 // ══ CAJA MODES ═══════════════════════════════════════════════
@@ -3251,7 +3294,7 @@ async function registrarVentaRapida() {
       uid, ventaRapida: true,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-    toast('✅ $' + monto.toLocaleString('es-AR') + ' registrado');
+    toast('✅ $' + monto.toLocaleString('es-AR') + ' registrado'); rtChkMarcar('venta');
     const m = document.getElementById('vrMonto'); if(m) m.value = '';
     const d = document.getElementById('vrDesc'); if(d) d.value = '';
   } catch(e) { logError('ventaRapida', e.message); toast('Error: ' + e.message); }
